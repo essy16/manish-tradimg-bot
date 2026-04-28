@@ -1,2 +1,5 @@
 .env
+.venv/
+__pycache__/
+data/
 .env.example.v2
