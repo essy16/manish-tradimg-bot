@@ -8,10 +8,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import random
 import os
 from pathlib import Path
 from typing import Any
-
+from openai import OpenAI
 from dotenv import load_dotenv
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode, ChatAction
@@ -20,6 +21,8 @@ from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
+    MessageHandler,
+    filters,
 )
 
 load_dotenv()
@@ -38,6 +41,10 @@ IOS_APP = os.getenv("IOS_APP", "").strip()
 ANDROID_APP = os.getenv("ANDROID_APP", "").strip()
 DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 CONTENT_FILE = Path(os.getenv("CONTENT_FILE", "content.json"))
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini").strip()
+
+openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 if not BOT_TOKEN:
     raise RuntimeError("Missing BOT_TOKEN in .env")
@@ -324,17 +331,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     state.clear()
     state["step"] = "entry"
 
-    persona_name = CONTENT.get("persona_name", "David")
+
+    await send_intro_video(update, context)
 
     messages = [
-        {
-            "text": "🎥 Watch this quickly before anything else...",
-            "delay": 1,
-        },
-        {
-            "text": f"Hey — I’m <b>{persona_name}</b>.",
-            "delay": 2,
-        },
+       
         {
             "text": "I help traders follow structured setups instead of random signals.",
             "delay": 2,
@@ -421,6 +422,362 @@ async def send_onboarding_message(context: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode=ParseMode.HTML,
     )
 
+async def send_intro_video(update, context):
+    video_path = Path(CONTENT.get("intro_video", "videos/intro.mp4"))
+
+    if not video_path.exists():
+        await send_plain_text(update, context, "Intro video missing.")
+        return
+
+    with video_path.open("rb") as video:
+        await context.bot.send_video_note(
+            chat_id=update.effective_chat.id,
+            video_note=video,
+        )
+
+    await asyncio.sleep(1)
+
+    await send_plain_text(
+        update,
+        context,
+        "I’m Avramis Despotis, Founder of Tradepedia.\n\n"
+        "People ask me… if you already make money trading, why do this?\n\n"
+        "Simple. Because making money alone is boring."
+    )
+
+TRADEPEDIA_AI_SYSTEM = """
+You are the Tradepedia Telegram funnel assistant.
+
+Style:
+- Sound human, calm, confident, and conversational.
+- Never repeat the same wording twice.
+- Do NOT start every objection reply with “Skepticism is smart”.
+- Vary openings naturally.
+- Use different phrases such as:
+  “Fair question.”
+  “I get why you’d ask that.”
+  “That’s a normal concern in trading.”
+  “You’re right to question things.”
+  “No pressure — judge it from the free channel first.”
+- Do not sound like a template.
+- Keep replies short: 2 to 5 sentences.
+- If the user is skeptical, do not argue. Acknowledge, then guide.
+- Never promise guaranteed profits.
+- Never give financial advice.
+- Rotate your phrasing naturally.
+- Ask small follow-up questions when useful.
+
+Your job:
+- Answer questions about Tradepedia, free signals, Premium Access, app registration, results, testimonials, XM route, and trust concerns.
+- If user says scam/fake, respond with empathy and confidence.
+- Explain that skepticism is normal in trading.
+- Invite them to check the free channel first instead of pushing payment.
+- Move the user toward one next step only.
+
+Brand facts:
+- Tradepedia is a trading education and signals ecosystem.
+- Telegram builds trust before users move to the app.
+- Final destination is the Tradepedia app.
+- Premium Access includes premium signals, market structure analysis, early access to setups, app tools, and Inner Circle community.
+- Pricing: 1 Month AED 199.99, 6 Months AED 999.99, 12 Months AED 1,799.99.
+- XM route: Open XM account using our link, deposit $250, then chat with the team to activate 6 months free Premium Access.
+- Track record: 2023 $608,000+, 2024 $1.46M+, 2025 $1.18M+, 2026 YTD $929,000+.
+
+If unrelated:
+Politely say you can only help with Tradepedia, signals, Premium Access, app registration, or XM access.
+"""
+
+
+def detect_emotion(user_text: str) -> str:
+    text = user_text.lower()
+
+    if any(w in text for w in ["scam", "fake", "fraud", "scammer", "scammers", "trust"]):
+        return "skeptical"
+
+    if any(w in text for w in ["price", "cost", "expensive", "how much", "premium", "subscribe", "payment"]):
+        return "pricing"
+
+    if any(w in text for w in ["xm", "broker", "deposit", "250", "account"]):
+        return "xm"
+
+    if any(w in text for w in ["results", "proof", "performance", "withdrawal", "profit"]):
+        return "proof"
+
+    if any(w in text for w in ["app", "download", "register", "ios", "android"]):
+        return "app"
+
+    if any(w in text for w in ["yes", "ready", "interested", "send", "link", "join"]):
+        return "ready"
+
+    return "general"
+
+
+def update_user_memory(context: ContextTypes.DEFAULT_TYPE, user_text: str) -> dict[str, Any]:
+    memory = context.user_data.setdefault("memory", {
+        "message_count": 0,
+        "objections": [],
+        "interests": [],
+        "conversion_score": 0,
+    })
+
+    emotion = detect_emotion(user_text)
+    memory["message_count"] += 1
+    memory["last_emotion"] = emotion
+
+    if emotion == "skeptical":
+        memory["objections"].append("trust")
+        memory["conversion_score"] += 1
+
+    elif emotion == "pricing":
+        memory["interests"].append("premium_pricing")
+        memory["conversion_score"] += 2
+
+    elif emotion == "xm":
+        memory["interests"].append("xm_route")
+        memory["conversion_score"] += 3
+
+    elif emotion == "proof":
+        memory["interests"].append("proof")
+        memory["conversion_score"] += 2
+
+    elif emotion == "app":
+        memory["interests"].append("app")
+        memory["conversion_score"] += 3
+
+    elif emotion == "ready":
+        memory["conversion_score"] += 4
+
+    else:
+        memory["conversion_score"] += 1
+
+    memory["conversion_score"] = min(memory["conversion_score"], 10)
+    return memory
+
+
+def get_followup_for_message(user_text: str, memory: dict[str, Any]) -> str:
+    emotion = detect_emotion(user_text)
+    score = memory.get("conversion_score", 0)
+
+    skeptical = [
+    "Fair question. Don’t take anyone’s word for it — watch the free signals first.",
+    "I get why you’d ask that. Trading has too much noise, so start free and judge the structure yourself.",
+    "You’re right to question things. That’s exactly why we let people observe the free channel first.",
+    "No pressure at all. The free channel is there so you can see how Tradepedia works before deciding.",
+    "That’s a normal concern. Start with the free signals, then decide based on what you actually see.",
+    "Good traders verify first. Join free, watch the setups, and make your own decision."
+]
+
+    pricing = [
+        "Premium is for traders who want deeper structure, earlier setups, and full app access.",
+        "You can start free first, then unlock Premium inside the Tradepedia app when it makes sense.",
+        "Most users watch the free signals first, then upgrade when they understand the value."
+    ]
+
+    xm = [
+        "The XM route is simple: open the account using our link, deposit $250, then message the team to activate 6 months free Premium Access.",
+        "For XM access, the team verifies your account after deposit, then activates your 6 months Premium.",
+        "XM is the alternative route if you prefer unlocking Premium through broker setup instead of direct app subscription."
+    ]
+
+    proof = [
+        "The strongest thing to check first is the structure behind the results — not just screenshots.",
+        "Start with the free channel and compare how the setups are explained versus random signal groups.",
+        "The proof makes more sense when you see how the trades are actually managed."
+    ]
+
+    app = [
+        "The app is the final destination for Premium Access. Telegram is mainly where trust is built first.",
+        "You can use Telegram to observe first, then register in the app when ready.",
+        "Premium is unlocked through the Tradepedia app, not as a random Telegram payment."
+    ]
+
+    ready = [
+        "Best next step: join the free signals first and see the structure live.",
+        "You’re close. Start free first, then Premium becomes much easier to understand.",
+        "Let’s keep it simple — free channel first, then app access when ready."
+    ]
+
+    high_intent = [
+        "Since you’re already asking the right questions, the best next move is to start with the free signals and then decide if Premium fits.",
+        "You seem serious enough to evaluate it properly. Start free, watch the structure, then move to Premium if it makes sense.",
+        "At this stage, don’t overthink it — observe the free channel first and let the structure speak."
+    ]
+
+    if score >= 7:
+        return random.choice(high_intent)
+
+    if emotion == "skeptical":
+        return random.choice(skeptical)
+
+    if emotion == "pricing":
+        return random.choice(pricing)
+
+    if emotion == "xm":
+        return random.choice(xm)
+
+    if emotion == "proof":
+        return random.choice(proof)
+
+    if emotion == "app":
+        return random.choice(app)
+
+    if emotion == "ready":
+        return random.choice(ready)
+
+    return random.choice([
+        "Start with the free channel first — that gives you the clearest picture.",
+        "The best way to understand Tradepedia is to watch the structure in real time.",
+        "Free first. Once the structure makes sense, Premium becomes the next step."
+    ])
+
+
+def get_buttons_for_message(user_text: str, memory: dict[str, Any]) -> InlineKeyboardMarkup:
+    emotion = detect_emotion(user_text)
+    score = memory.get("conversion_score", 0)
+
+    if emotion == "xm":
+        return broker_markup()
+
+    if emotion in ["pricing", "app"] or score >= 7:
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+            [InlineKeyboardButton("✅ Join Free Signals", callback_data="join_free")]
+        ])
+
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Join Free Signals", callback_data="join_free")],
+        [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")]
+    ])
+
+
+async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_text = (update.message.text or "").strip()
+
+    if not user_text:
+        return
+
+    memory = update_user_memory(context, user_text)
+    text_lower = user_text.lower()
+
+    # ✅ HARD OVERRIDE FOR FOUNDER QUESTION
+    if "avramis" in text_lower or "who is avramis" in text_lower:
+        await context.bot.send_chat_action(
+            chat_id=update.effective_chat.id,
+            action=ChatAction.TYPING,
+        )
+
+        await asyncio.sleep(random.uniform(1.5, 3.0))
+
+        await send_plain_text(
+            update,
+            context,
+            (
+                "Avramis Despotis is the founder of Tradepedia.\n\n"
+                "He is a well-known trader with a verified multi-year track record "
+                "and multi-million dollar performance across different market conditions.\n\n"
+                "More importantly, he focuses on structured trading — not random signals.\n\n"
+                "That’s why everything inside Tradepedia is built around timing, execution, "
+                "and consistency rather than hype."
+            )
+        )
+
+        await asyncio.sleep(random.uniform(1.5, 3.0))
+
+        await send_plain_text(
+            update,
+            context,
+            "Best way to understand that is to watch the free signals first.",
+            InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ Join Free Signals", callback_data="join_free")],
+                [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")]
+            ])
+        )
+        return
+
+    # ---------------- NORMAL FLOW ---------------- #
+
+    if not openai_client:
+        reply = "Good question. The safest way to judge Tradepedia is to start free and watch how the structure works."
+
+        await send_plain_text(update, context, reply)
+
+        await context.bot.send_chat_action(
+            chat_id=update.effective_chat.id,
+            action=ChatAction.TYPING,
+        )
+
+        await asyncio.sleep(random.uniform(1.5, 3.5))
+
+        followup = get_followup_for_message(user_text, memory)
+
+        await send_plain_text(
+            update,
+            context,
+            followup,
+            get_buttons_for_message(user_text, memory)
+        )
+        return
+
+    await context.bot.send_chat_action(
+        chat_id=update.effective_chat.id,
+        action=ChatAction.TYPING,
+    )
+
+    try:
+        response = await asyncio.to_thread(
+            openai_client.responses.create,
+            model=OPENAI_MODEL,
+            instructions=(
+                TRADEPEDIA_AI_SYSTEM
+                + f"\n\nUser memory:\n"
+                + f"- Message count: {memory.get('message_count')}\n"
+                + f"- Last emotion: {memory.get('last_emotion')}\n"
+                + f"- Interests: {memory.get('interests')}\n"
+                + f"- Objections: {memory.get('objections')}\n"
+                + f"- Conversion score: {memory.get('conversion_score')}/10\n"
+            ),
+            input=user_text,
+        )
+
+        reply = response.output_text.strip()
+
+        await send_plain_text(update, context, reply)
+
+        # ✅ HUMAN DELAY
+        await context.bot.send_chat_action(
+            chat_id=update.effective_chat.id,
+            action=ChatAction.TYPING,
+        )
+
+        await asyncio.sleep(random.uniform(1.5, 3.5))
+
+        followup = get_followup_for_message(user_text, memory)
+
+        await send_plain_text(
+            update,
+            context,
+            followup,
+            get_buttons_for_message(user_text, memory)
+        )
+
+    except Exception:
+        logger.exception("OpenAI reply failed")
+
+        fallback = random.choice([
+            "Good question. The safest way to judge Tradepedia is to start with the free signals and see the structure yourself.",
+            "I understand the question. Start free first, watch how the signals are handled, then decide calmly.",
+            "The free channel exists for exactly this reason — so you can observe before making any decision."
+        ])
+
+        await send_plain_text(
+            update,
+            context,
+            fallback,
+            InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ Join Free Signals", callback_data="join_free")],
+                [InlineKeyboardButton("🚀 Premium Access", callback_data="premium_offer")]
+            ])
+        )
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
@@ -652,35 +1009,25 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if data == "next_explain":
         state["step"] = "free_vs_premium"
 
-        messages = [
+        await send_sequence(update, context, [
+            {"text": "Most groups give signals.", "delay": 2},
+            {"text": "Tradepedia gives structure.", "delay": 2},
+            {"text": "Let me show you how Premium actually works.", "delay": 2},
+        ])
+
+        await send_premium_example(update, context)
+
+        await send_sequence(update, context, [
             {
-                "text": "Most groups give signals.",
-                "delay": 2,
-            },
-            {
-                "text": "Tradepedia gives structure.",
-                "delay": 2,
-            },
-            {
-                "text": "Free members see the setup.",
-                "delay": 2,
-            },
-            {
-                "text": "Premium members understand the reasoning, timing, and execution context.",
-                "delay": 2,
-            },
-            {
-                "text": build_free_vs_premium_text(),
+                "text": "That’s the difference between guessing and structured trading.",
                 "delay": 2,
                 "reply_markup": InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Start with free signals", callback_data="join_free")]
-                ]),
-            },
-        ]
-
-        await send_sequence(update, context, messages)
+                    [InlineKeyboardButton("Join Free First", url=FREE_CHANNEL_LINK)]
+                ])
+            }
+        ])
         return
-
+    
     if data == "join_free":
         state["step"] = "join_free"
 
@@ -800,19 +1147,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 "delay": 2,
             },
             {
-                "text": "Open an XM account and deposit $250.",
-                "delay": 2,
-            },
-            {
-                "text": "That unlocks <b>6 months of Tradepedia Premium Access</b>.",
-                "delay": 2,
+                "text": "Open an XM account using our link, deposit $250, then chat with us to activate your <b>6 months free Premium Access</b>.",
+                "delay": 3,
                 "reply_markup": broker_markup(),
             },
         ]
 
         await send_sequence(update, context, messages)
         return
-
+    
     if data == "human_close":
         state["step"] = "human_close"
 
@@ -840,6 +1183,87 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await send_plain_text(update, context, "Unknown action. Type /start to begin again.")
 
 
+
+async def send_premium_example(update, context):
+    chat_id = update.effective_chat.id
+
+    # 1️⃣ CHART FIRST
+    premium = CONTENT.get("premium_examples", [{"image": "images/premium-gold.png", "caption": "GOLD (H4) — Bearish Reversal"}])[0]
+    image_path = Path(premium["image"])
+    caption = premium.get("caption", "GOLD (H4) — Bearish Reversal")
+
+    if image_path.exists():
+        with image_path.open("rb") as photo:
+            await context.bot.send_photo(
+                chat_id=chat_id,
+                photo=photo,
+                caption=caption
+            )
+
+    await asyncio.sleep(8)
+
+    # 2️⃣ FULL ANALYSIS
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=(
+            "<b>Bias:</b> Bearish\n"
+            "<b>HTF Alignment:</b> Moderate\n"
+            "<b>Score:</b> 6\n"
+            "<b>Trade Class:</b> Reversal — Bearish\n"
+            "<b>Risk:</b> 0.75%\n\n"
+
+            "<b>Context:</b>\n"
+            "Double top formed, momentum weakening, rejection at highs.\n"
+            "Indicates corrective phase.\n\n"
+
+            "<b>Entry:</b> 4767.66\n"
+            "<b>Stop:</b> 4889.35\n"
+            "<b>Target 1:</b> 4695.86\n"
+            "<b>Target 2:</b> 4574.17\n"
+            "<b>Target 3:</b> 4375.82\n\n"
+
+            "“Keep fighting the trend… someone has to be on the wrong side.”\n"
+            "— Avramis Despotis"
+        ),
+        parse_mode="HTML"
+    )
+
+    await asyncio.sleep(2)
+
+    await context.bot.send_message(
+    chat_id=chat_id,
+    text="When a signal reaches target, an update is sent:",
+    parse_mode="HTML"
+)
+
+    await asyncio.sleep(8)
+
+    # 3️⃣ UPDATE 1
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=(
+            "<b>Gold — Trade Update</b>\n\n"
+            "T1 hit ✅\n"
+            "Closed 50%\n"
+            "Stop moved to entry\n\n"
+            "<b>Position now risk-free</b>"
+        ),
+        parse_mode="HTML"
+    )
+
+    await asyncio.sleep(2)
+
+    # 4️⃣ FINAL UPDATE
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=(
+            "<b>Gold — Trade Update</b>\n\n"
+            "Closed remaining 50% ✅\n\n"
+            "Looking for next opportunity."
+        ),
+        parse_mode="HTML"
+    )
+
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.exception("Unhandled exception", exc_info=context.error)
 
@@ -852,6 +1276,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("status", status_command))
     app.add_handler(CallbackQueryHandler(handle_callback))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_message))
     app.add_error_handler(error_handler)
 
     return app

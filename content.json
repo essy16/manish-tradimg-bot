@@ -1,22 +1,21 @@
 {
   "recent_results": [
     {
-      "image": "images/results_2.jpeg",
-      "caption": "📊 Multi-year verified trading performance showing consistency across different market conditions — this is long-term execution, not one lucky trade."
-    },
-    {
-      "image": "images/results_3.jpeg",
-      "caption": "📈 Recent live account performance showing how the long-term track record translates into actual current execution."
-    },
-    {
-      "image": "images/results_4.jpeg",
-      "caption": "📈 Recent live account performance showing how the long-term track record translates into actual current execution."
+      "image": "images/combined.png",
+      "caption": "📊 Verified results and live account proof showing consistency, execution, and real trading performance."
     }
   ],
   "testimonials": [
     {
       "image": "images/reviews.png",
-      "caption": "..."
+      "caption": "Real client feedback from Tradepedia users."
+    }
+  ],
+  "intro_video": "videos/intro.mp4",
+  "premium_examples": [
+    {
+      "image": "images/premium_gold.png",
+      "caption": "GOLD (H4) — Bearish Reversal"
     }
   ]
 }
