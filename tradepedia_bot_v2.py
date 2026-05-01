@@ -59,7 +59,7 @@ DEFAULT_CONTENT = {
     "recent_results": [
         {
             "image": "images/proof1.jpeg",
-            "caption": "📊 Multi-year verified trading performance showing long-term profitability and consistency."
+            "caption": "📊Avramis Despotis Personal Account performance :"
         },
         {
             "image": "images/proof2.jpeg",
@@ -273,7 +273,7 @@ async def send_performance_proof(update: Update, context: ContextTypes.DEFAULT_T
         },
         {
             "text": (
-                "📊 <b>Multi-Year Verified Trading Performance</b>\n\n"
+                "📊 <b>Avramis Despotis Personal Account performance :</b>\n\n"
                 "• 2023 Profit → $608,000+\n"
                 "• 2024 Profit → $1.46M+\n"
                 "• 2025 Profit → $1.18M+\n"
@@ -423,27 +423,16 @@ async def send_onboarding_message(context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 async def send_intro_video(update, context):
-    video_path = Path(CONTENT.get("intro_video", "videos/intro.mp4"))
-
-    if not video_path.exists():
-        await send_plain_text(update, context, "Intro video missing.")
-        return
+    video_path = Path("videos/intro.mp4")
 
     with video_path.open("rb") as video:
-        await context.bot.send_video_note(
+        msg = await context.bot.send_video_note(
             chat_id=update.effective_chat.id,
             video_note=video,
         )
 
-    await asyncio.sleep(1)
+    print("\n🔥 COPY THIS FILE_ID:\n", msg.video.file_id, "\n",flush=True)
 
-    await send_plain_text(
-        update,
-        context,
-        "I’m Avramis Despotis, Founder of Tradepedia.\n\n"
-        "People ask me… if you already make money trading, why do this?\n\n"
-        "Simple. Because making money alone is boring."
-    )
 
 TRADEPEDIA_AI_SYSTEM = """
 You are the Tradepedia Telegram funnel assistant.
@@ -641,80 +630,207 @@ def get_buttons_for_message(user_text: str, memory: dict[str, Any]) -> InlineKey
     if emotion in ["pricing", "app"] or score >= 7:
         return InlineKeyboardMarkup([
             [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
-            [InlineKeyboardButton("✅ Join Free Signals", callback_data="join_free")]
+            [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)]  # ✅ FIXED
         ])
 
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Join Free Signals", callback_data="join_free")],
-        [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")]
-    ])
+    [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+    [InlineKeyboardButton("✅ I Joined", callback_data="after_free_join")],
+    [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")]
+])
+
+
+
+
+async def send_video_testimonials(update, context):
+    videos = CONTENT.get("video_testimonials", [])
+
+    for item in videos:
+        video_path = Path(item["video"])
+        caption = item.get("caption", "")
+
+        if not video_path.exists():
+            await send_plain_text(update, context, f"Missing video testimonial: {item['video']}")
+            continue
+
+        await context.bot.send_chat_action(
+            chat_id=update.effective_chat.id,
+            action=ChatAction.UPLOAD_VIDEO,
+        )
+
+        with video_path.open("rb") as video:
+            await context.bot.send_video(
+                chat_id=update.effective_chat.id,
+                video=video,
+                caption=caption,
+            )
+
+        await asyncio.sleep(3)
+
+async def show_testimonials_flow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await send_plain_text(update, context, "Absolutely — here are real Tradepedia testimonials.")
+    await send_video_testimonials(update, context)
+
+    await asyncio.sleep(2)
+
+    await send_plain_text(
+        update,
+        context,
+        "Now let me show you what separates Free from Premium.",
+        InlineKeyboardMarkup([
+            [InlineKeyboardButton("Continue", callback_data="next_explain")],
+            [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+        ])
+    )
 
 
 async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user_text = (update.message.text or "").strip()
+    if not update.message or not update.message.text:
+        return
 
+    user_text = update.message.text.strip()
     if not user_text:
         return
 
-    memory = update_user_memory(context, user_text)
     text_lower = user_text.lower()
+    memory = update_user_memory(context, user_text)
 
-    # ✅ HARD OVERRIDE FOR FOUNDER QUESTION
-    if "avramis" in text_lower or "who is avramis" in text_lower:
-        await context.bot.send_chat_action(
-            chat_id=update.effective_chat.id,
-            action=ChatAction.TYPING,
+    if any(w in text_lower for w in ["i joined", "i have joined", "joined", "done", "i am in"]):
+        await schedule_onboarding(update, context)
+        schedule_conversion_journey(update, context)
+
+        image_path = Path("images/i-joined.png")
+        if image_path.exists():
+            with image_path.open("rb") as photo:
+                await context.bot.send_photo(
+                    chat_id=update.effective_chat.id,
+                    photo=photo,
+                    caption="✅ Good — that’s the right way to start.\n\nNow watch how the next few trades are structured.",
+                )
+        else:
+            await send_plain_text(update, context, "✅ Good — that’s the right way to start.")
+
+        await asyncio.sleep(2)
+        await send_plain_text(update, context, "Pay attention to structure, timing, and risk.")
+
+        await asyncio.sleep(2)
+        await send_plain_text(
+            update,
+            context,
+            "Ready to see what Premium includes?",
+            InlineKeyboardMarkup([
+                [InlineKeyboardButton("Show me Premium Access", callback_data="premium_offer")]
+            ])
+        )
+        return
+
+    if any(w in text_lower for w in ["testimonial", "testimonials", "review", "reviews", "feedback"]):
+        await show_testimonials_flow(update, context)
+        return
+
+    if any(w in text_lower for w in ["result", "results", "proof", "performance", "profits", "profit"]):
+        await send_plain_text(update, context, "Here are recent Tradepedia results.")
+        await send_results(update, context)
+
+        await asyncio.sleep(2)
+
+        await send_plain_text(
+            update,
+            context,
+            "Want to see real testimonials too?",
+            InlineKeyboardMarkup([
+                [InlineKeyboardButton("Show Testimonials", callback_data="next_testimonials")],
+                [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+            ])
+        )
+        return
+
+    if any(w in text_lower for w in ["not convinced", "convince me", "convince me harder", "why should i trust", "show more proof", "more proof"]):
+        await send_plain_text(
+            update,
+            context,
+            "Fair. Don’t decide from words alone — look at the trading evidence first."
         )
 
-        await asyncio.sleep(random.uniform(1.5, 3.0))
+        proof_1 = Path("images/proof-extra-1.png")
+        proof_2 = Path("images/proof-extra-2.png")
 
+        if proof_1.exists():
+            with proof_1.open("rb") as photo:
+                await context.bot.send_photo(
+                    chat_id=update.effective_chat.id,
+                    photo=photo,
+                    caption=(
+                        "This is the kind of live trading activity Premium members are positioned around.\n\n"
+                        "The point is not hype — it is seeing structure before the move happens."
+                    ),
+                )
+
+        await asyncio.sleep(3)
+
+        if proof_2.exists():
+            with proof_2.open("rb") as photo:
+                await context.bot.send_photo(
+                    chat_id=update.effective_chat.id,
+                    photo=photo,
+                    caption=(
+                        "This is why timing matters.\n\n"
+                        "Free gives you a starting point. Premium gives the deeper structure, updates, and execution context."
+                    ),
+                )
+
+        await asyncio.sleep(2)
+
+        await send_plain_text(
+            update,
+            context,
+            "Start free first. If the structure makes sense, Premium becomes the next step.",
+            InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+                [InlineKeyboardButton("✅ I Joined", callback_data="after_free_join")],
+                [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+            ])
+        )
+        return
+
+    if "avramis" in text_lower:
         await send_plain_text(
             update,
             context,
             (
                 "Avramis Despotis is the founder of Tradepedia.\n\n"
-                "He is a well-known trader with a verified multi-year track record "
-                "and multi-million dollar performance across different market conditions.\n\n"
-                "More importantly, he focuses on structured trading — not random signals.\n\n"
-                "That’s why everything inside Tradepedia is built around timing, execution, "
-                "and consistency rather than hype."
-            )
-        )
-
-        await asyncio.sleep(random.uniform(1.5, 3.0))
-
-        await send_plain_text(
-            update,
-            context,
-            "Best way to understand that is to watch the free signals first.",
+                "He is a well-known trader with a verified multi-year track record and multi-million dollar performance across different market conditions.\n\n"
+                "Tradepedia is built around his structured approach to trading — timing, execution, and consistency."
+            ),
             InlineKeyboardMarkup([
-                [InlineKeyboardButton("✅ Join Free Signals", callback_data="join_free")],
-                [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")]
+                [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+                [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
             ])
         )
         return
 
-    # ---------------- NORMAL FLOW ---------------- #
-
-    if not openai_client:
-        reply = "Good question. The safest way to judge Tradepedia is to start free and watch how the structure works."
-
-        await send_plain_text(update, context, reply)
-
-        await context.bot.send_chat_action(
-            chat_id=update.effective_chat.id,
-            action=ChatAction.TYPING,
+    if any(w in text_lower for w in ["hi", "hello", "hey"]):
+        await send_plain_text(
+            update,
+            context,
+            random.choice([
+                "Hey — welcome to Tradepedia.",
+                "Hi — glad you’re here.",
+                "Welcome — you’re in the right place.",
+            ])
         )
 
-        await asyncio.sleep(random.uniform(1.5, 3.5))
-
-        followup = get_followup_for_message(user_text, memory)
+        await asyncio.sleep(1.5)
 
         await send_plain_text(
             update,
             context,
-            followup,
-            get_buttons_for_message(user_text, memory)
+            "What would you like to see first?",
+            InlineKeyboardMarkup([
+                [InlineKeyboardButton("📊 Results", callback_data="next_results")],
+                [InlineKeyboardButton("💬 Testimonials", callback_data="next_testimonials")],
+                [InlineKeyboardButton("🚀 Premium Access", callback_data="premium_offer")],
+            ])
         )
         return
 
@@ -724,26 +840,32 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
 
     try:
-        response = await asyncio.to_thread(
-            openai_client.responses.create,
-            model=OPENAI_MODEL,
-            instructions=(
-                TRADEPEDIA_AI_SYSTEM
-                + f"\n\nUser memory:\n"
-                + f"- Message count: {memory.get('message_count')}\n"
-                + f"- Last emotion: {memory.get('last_emotion')}\n"
-                + f"- Interests: {memory.get('interests')}\n"
-                + f"- Objections: {memory.get('objections')}\n"
-                + f"- Conversion score: {memory.get('conversion_score')}/10\n"
-            ),
-            input=user_text,
-        )
-
-        reply = response.output_text.strip()
+        if openai_client:
+            response = await asyncio.to_thread(
+                openai_client.responses.create,
+                model=OPENAI_MODEL,
+                instructions=(
+                    TRADEPEDIA_AI_SYSTEM
+                    + "\n\nUse a fresh, non-repetitive tone. Do not reuse the same opening line."
+                    + f"\n\nUser memory:\n"
+                    + f"- Message count: {memory.get('message_count')}\n"
+                    + f"- Last emotion: {memory.get('last_emotion')}\n"
+                    + f"- Interests: {memory.get('interests')}\n"
+                    + f"- Objections: {memory.get('objections')}\n"
+                    + f"- Conversion score: {memory.get('conversion_score')}/10\n"
+                ),
+                input=user_text,
+            )
+            reply = response.output_text.strip()
+        else:
+            reply = random.choice([
+                "Tell me what you want to know — results, testimonials, or Premium.",
+                "I can show you proof, user feedback, or how Premium works.",
+                "What are you trying to understand first?",
+            ])
 
         await send_plain_text(update, context, reply)
 
-        # ✅ HUMAN DELAY
         await context.bot.send_chat_action(
             chat_id=update.effective_chat.id,
             action=ChatAction.TYPING,
@@ -761,23 +883,17 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
 
     except Exception:
-        logger.exception("OpenAI reply failed")
-
-        fallback = random.choice([
-            "Good question. The safest way to judge Tradepedia is to start with the free signals and see the structure yourself.",
-            "I understand the question. Start free first, watch how the signals are handled, then decide calmly.",
-            "The free channel exists for exactly this reason — so you can observe before making any decision."
-        ])
-
+        logger.exception("AI reply failed")
         await send_plain_text(
             update,
             context,
-            fallback,
+            "I’m here — ask me anything about Tradepedia, results, testimonials, or Premium Access.",
             InlineKeyboardMarkup([
-                [InlineKeyboardButton("✅ Join Free Signals", callback_data="join_free")],
-                [InlineKeyboardButton("🚀 Premium Access", callback_data="premium_offer")]
+                [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+                [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
             ])
         )
+
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
@@ -790,455 +906,419 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     state = get_user_state(context)
     data = query.data or ""
 
-    if data == "restart":
-        await start(update, context)
+    last_action = state.get("last_action")
+    last_action_time = state.get("last_action_time", 0)
+    now = asyncio.get_event_loop().time()
+
+    if last_action == data and now - last_action_time < 5:
         return
 
-    if data == "exp_beginner":
-        state["experience"] = "beginner"
-        state["step"] = "loss_question"
-
-        messages = [
-            {
-                "text": "Got it — that’s actually a good place to start.",
-                "delay": 1,
-            },
-            {
-                "text": "Most beginners don’t lose because of the market.",
-                "delay": 2,
-            },
-            {
-                "text": "They lose because they follow signals blindly without understanding structure.",
-                "delay": 2,
-            },
-            {
-                "text": "Let me ask you something...",
-                "delay": 2,
-            },
-            {
-                "text": "<b>Have you ever lost money following signals before?</b>",
-                "delay": 2,
-                "reply_markup": InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Yes", callback_data="lost_yes")],
-                    [InlineKeyboardButton("No", callback_data="lost_no")],
-                ]),
-            },
-        ]
-
-        await send_sequence(update, context, messages)
+    processing_key = f"processing_{data}"
+    if state.get(processing_key):
         return
 
-    if data == "exp_mid":
-        state["experience"] = "mid"
-        state["step"] = "loss_question"
+    state["last_action"] = data
+    state["last_action_time"] = now
+    state[processing_key] = True
 
-        messages = [
-            {
-                "text": "Good — then you’ll understand this quickly.",
-                "delay": 1,
-            },
-            {
-                "text": "The issue with most signal groups is poor timing.",
-                "delay": 2,
-            },
-            {
-                "text": "Late entries. No reasoning. No structure.",
-                "delay": 2,
-            },
-            {
-                "text": "<b>Have you lost money following signals before?</b>",
-                "delay": 2,
-                "reply_markup": InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Yes", callback_data="lost_yes")],
-                    [InlineKeyboardButton("No", callback_data="lost_no")],
-                ]),
-            },
-        ]
+    try:
+        if data == "restart":
+            await start(update, context)
+            return
 
-        await send_sequence(update, context, messages)
-        return
+        if data == "exp_beginner":
+            state["experience"] = "beginner"
+            state["step"] = "loss_question"
 
-    if data == "exp_signals":
-        state["experience"] = "signals"
-        state["step"] = "loss_question"
+            await send_sequence(update, context, [
+                {"text": "Got it — that’s actually a good place to start.", "delay": 1},
+                {"text": "Most beginners don’t lose because of the market.", "delay": 2},
+                {"text": "They lose because they follow signals blindly without understanding structure.", "delay": 2},
+                {"text": "Let me ask you something...", "delay": 2},
+                {
+                    "text": "<b>Have you ever lost money following signals before?</b>",
+                    "delay": 2,
+                    "reply_markup": InlineKeyboardMarkup([
+                        [InlineKeyboardButton("Yes", callback_data="lost_yes")],
+                        [InlineKeyboardButton("No", callback_data="lost_no")],
+                    ]),
+                },
+            ])
+            return
 
-        messages = [
-            {
-                "text": "Let me guess — inconsistent results?",
-                "delay": 1,
-            },
-            {
-                "text": "That usually happens when entries are late and the reasoning is missing.",
-                "delay": 2,
-            },
-            {
-                "text": "Signals alone are not enough.",
-                "delay": 2,
-            },
-            {
-                "text": "<b>Have you lost money with other signal groups before?</b>",
-                "delay": 2,
-                "reply_markup": InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Yes", callback_data="lost_yes")],
-                    [InlineKeyboardButton("No", callback_data="lost_no")],
-                ]),
-            },
-        ]
+        if data == "exp_mid":
+            state["experience"] = "mid"
+            state["step"] = "loss_question"
 
-        await send_sequence(update, context, messages)
-        return
+            await send_sequence(update, context, [
+                {"text": "Good — then you’ll understand this quickly.", "delay": 1},
+                {"text": "The issue with most signal groups is poor timing.", "delay": 2},
+                {"text": "Late entries. No reasoning. No structure.", "delay": 2},
+                {
+                    "text": "<b>Have you lost money following signals before?</b>",
+                    "delay": 2,
+                    "reply_markup": InlineKeyboardMarkup([
+                        [InlineKeyboardButton("Yes", callback_data="lost_yes")],
+                        [InlineKeyboardButton("No", callback_data="lost_no")],
+                    ]),
+                },
+            ])
+            return
 
-    if data == "lost_yes":
-        state["pain"] = "yes"
-        state["step"] = "performance_proof"
+        if data == "exp_signals":
+            state["experience"] = "signals"
+            state["step"] = "loss_question"
 
-        messages = [
-            {
-                "text": "Yeah... that’s exactly why most traders come to us.",
-                "delay": 2,
-            },
-            {
-                "text": "Not because they’re new.",
-                "delay": 2,
-            },
-            {
-                "text": "But because they’ve already been burned by bad timing and low-quality signals.",
-                "delay": 2,
-            },
-            {
-                "text": "So before anything else...",
-                "delay": 2,
-            },
-        ]
+            await send_sequence(update, context, [
+                {"text": "Let me guess — inconsistent results?", "delay": 1},
+                {"text": "That usually happens when entries are late and the reasoning is missing.", "delay": 2},
+                {"text": "Signals alone are not enough.", "delay": 2},
+                {
+                    "text": "<b>Have you lost money with other signal groups before?</b>",
+                    "delay": 2,
+                    "reply_markup": InlineKeyboardMarkup([
+                        [InlineKeyboardButton("Yes", callback_data="lost_yes")],
+                        [InlineKeyboardButton("No", callback_data="lost_no")],
+                    ]),
+                },
+            ])
+            return
 
-        await send_sequence(update, context, messages)
-        await send_performance_proof(update, context)
-        return
+        if data == "lost_yes":
+            state["pain"] = "yes"
+            state["step"] = "performance_proof"
 
-    if data == "lost_no":
-        state["pain"] = "no"
-        state["step"] = "performance_proof"
+            await send_sequence(update, context, [
+                {"text": "Yeah... that’s exactly why most traders come to us.", "delay": 2},
+                {"text": "Not because they’re new.", "delay": 2},
+                {"text": "But because they’ve already been burned by bad timing and low-quality signals.", "delay": 2},
+                {"text": "So before anything else...", "delay": 2},
+            ])
 
-        messages = [
-            {
-                "text": "That’s good.",
-                "delay": 1,
-            },
-            {
-                "text": "It means you haven’t built too many bad habits yet.",
-                "delay": 2,
-            },
-            {
-                "text": "So the smartest thing now is to verify consistency before trusting anyone.",
-                "delay": 2,
-            },
-        ]
+            await send_performance_proof(update, context)
+            return
 
-        await send_sequence(update, context, messages)
-        await send_performance_proof(update, context)
-        return
+        if data == "lost_no":
+            state["pain"] = "no"
+            state["step"] = "performance_proof"
 
-    if data == "next_results":
-        state["step"] = "results"
+            await send_sequence(update, context, [
+                {"text": "That’s good.", "delay": 1},
+                {"text": "It means you haven’t built too many bad habits yet.", "delay": 2},
+                {"text": "So the smartest thing now is to verify consistency before trusting anyone.", "delay": 2},
+            ])
 
-        messages = [
-            {
-                "text": "Now let me show you recent live account proof.",
-                "delay": 2,
-            }
-        ]
+            await send_performance_proof(update, context)
+            return
 
-        await send_sequence(update, context, messages)
-        await send_results(update, context)
+        if data == "next_results":
+            state["step"] = "results"
 
-        messages = [
-            {
-                "text": "So now you’ve seen both:",
-                "delay": 2,
-            },
-            {
-                "text": "• multi-year consistency\n• recent live execution",
-                "delay": 2,
-            },
-            {
-                "text": "That’s the difference between marketing and real trading.",
-                "delay": 2,
-                "reply_markup": InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Show me real testimonials", callback_data="next_testimonials")]
-                ]),
-            },
-        ]
+            await send_sequence(update, context, [
+                {"text": "Now let me show you recent live account proof.", "delay": 2},
+            ])
 
-        await send_sequence(update, context, messages)
-        return
+            await send_results(update, context)
 
-    if data == "next_testimonials":
-        state["step"] = "testimonials"
+            await send_sequence(update, context, [
+                {"text": "So now you’ve seen both:", "delay": 2},
+                {"text": "• multi-year consistency\n• recent live execution", "delay": 2},
+                {
+                    "text": "That’s the difference between marketing and real trading.",
+                    "delay": 2,
+                    "reply_markup": InlineKeyboardMarkup([
+                        [InlineKeyboardButton("Show me real testimonials", callback_data="next_testimonials")]
+                    ]),
+                },
+            ])
+            return
 
-        messages = [
-            {
-                "text": "Now look at what real users say.",
-                "delay": 2,
-            },
-            {
-                "text": "Not theory. Not hype.",
-                "delay": 2,
-            },
-            {
-                "text": "Real people seeing confidence through structure.",
-                "delay": 2,
-            },
-        ]
+        if data == "next_testimonials":
+            state["step"] = "testimonials"
 
-        await send_sequence(update, context, messages)
-        await send_testimonials(update, context)
+            await send_sequence(update, context, [
+                {"text": "Now look at what real users say.", "delay": 2},
+                {"text": "Not theory. Not hype.", "delay": 2},
+                {"text": "Real people seeing confidence through structure.", "delay": 2},
+            ])
 
-        messages = [
-            {
-                "text": "Now let me show you what separates Free from Premium.",
-                "delay": 2,
-                "reply_markup": InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Continue", callback_data="next_explain")]
-                ]),
-            },
-        ]
+            await show_testimonials_flow(update, context)
+            return
 
-        await send_sequence(update, context, messages)
-        return
+        if data == "next_explain":
+            state["step"] = "free_vs_premium"
 
-    if data == "next_explain":
-        state["step"] = "free_vs_premium"
+            await send_sequence(update, context, [
+                {"text": "Most groups give signals.", "delay": 2},
+                {"text": "Tradepedia gives structure.", "delay": 2},
+                {"text": "Let me show you how Premium actually works.", "delay": 2},
+            ])
 
-        await send_sequence(update, context, [
-            {"text": "Most groups give signals.", "delay": 2},
-            {"text": "Tradepedia gives structure.", "delay": 2},
-            {"text": "Let me show you how Premium actually works.", "delay": 2},
-        ])
+            await send_premium_example(update, context)
 
-        await send_premium_example(update, context)
+            await send_sequence(update, context, [
+                {"text": "That’s the difference between guessing and structured trading.", "delay": 3},
+                {"text": "Now you have two smart options:", "delay": 3},
+                {"text": "Start with the free channel if you want to observe first.", "delay": 3},
+                {
+                    "text": "Or unlock Premium Access if you already want the full structure, app tools, and Inner Circle.",
+                    "delay": 3,
+                    "reply_markup": InlineKeyboardMarkup([
+                        [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+                        [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+                        [InlineKeyboardButton("📈 XM Route: 6 Months Free", callback_data="broker_path")],
+                    ]),
+                },
+            ])
+            return
 
-        await send_sequence(update, context, [
-            {
-                "text": "That’s the difference between guessing and structured trading.",
-                "delay": 2,
-                "reply_markup": InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Join Free First", url=FREE_CHANNEL_LINK)]
-                ])
-            }
-        ])
-        return
-    
-    if data == "join_free":
-        state["step"] = "join_free"
+        if data == "join_free":
+            state["step"] = "join_free"
 
-        messages = [
-            {
-                "text": "You do <b>not</b> need to jump into Premium immediately.",
-                "delay": 2,
-            },
-            {
-                "text": "The best move is simple:",
-                "delay": 2,
-            },
-            {
-                "text": "Join the free channel first.",
-                "delay": 2,
-            },
-            {
-                "text": "Watch how the setups are structured.",
-                "delay": 2,
-            },
-            {
-                "text": "Then you’ll understand why Premium exists.",
-                "delay": 2,
-                "reply_markup": free_join_markup(),
-            },
-        ]
+            await send_sequence(update, context, [
+                {"text": "You do <b>not</b> need to jump into Premium immediately.", "delay": 2},
+                {"text": "The best move is simple:", "delay": 2},
+                {"text": "Join the free channel first.", "delay": 2},
+                {"text": "Watch how the setups are structured.", "delay": 2},
+                {
+                    "text": "Then tap the button below once you’ve joined.",
+                    "delay": 2,
+                    "reply_markup": InlineKeyboardMarkup([
+                        [InlineKeyboardButton("✅ Join Free Signals Channel", url=FREE_CHANNEL_LINK)],
+                        [InlineKeyboardButton("✅ I Joined", callback_data="after_free_join")],
+                    ]),
+                },
+            ])
+            return
 
-        await send_sequence(update, context, messages)
-        return
+        if data == "after_free_join":
+            state["step"] = "joined_free"
 
-    if data == "after_free_join":
-        state["step"] = "joined_free"
-        await schedule_onboarding(update, context)
+            await schedule_onboarding(update, context)
+            schedule_conversion_journey(update, context)
 
-        messages = [
-            {
-                "text": "Good — that’s the right way to start.",
-                "delay": 2,
-            },
-            {
-                "text": "Watch the next few trades.",
-                "delay": 2,
-            },
-            {
-                "text": "Pay attention to structure, timing, and risk.",
-                "delay": 2,
-            },
-            {
-                "text": "That’s usually when serious traders understand why Premium Access exists.",
-                "delay": 2,
-            },
-            {
-                "text": "Ready to see what Premium includes?",
-                "delay": 2,
-                "reply_markup": InlineKeyboardMarkup([
+            image_path = Path("images/i-joined.png")
+
+            if image_path.exists():
+                with image_path.open("rb") as photo:
+                    await context.bot.send_photo(
+                        chat_id=update.effective_chat.id,
+                        photo=photo,
+                        caption="✅ Good — that’s the right way to start.\n\nNow watch how the next few trades are structured.",
+                    )
+            else:
+                await send_plain_text(update, context, "✅ Good — that’s the right way to start.")
+
+            await asyncio.sleep(2)
+            await send_plain_text(update, context, "Pay attention to structure, timing, and risk.")
+
+            await asyncio.sleep(2)
+            await send_plain_text(
+                update,
+                context,
+                "Ready to see what Premium includes?",
+                InlineKeyboardMarkup([
                     [InlineKeyboardButton("Show me Premium Access", callback_data="premium_offer")]
-                ]),
-            },
-        ]
+                ])
+            )
+            return
 
-        await send_sequence(update, context, messages)
+        if data == "premium_offer":
+            state["step"] = "premium_offer"
+
+            await send_sequence(update, context, [
+                {"text": "🚀 <b>Unlock Tradepedia Premium Access</b>", "delay": 2},
+                {
+                    "text": (
+                        "Premium Access unlocks:\n\n"
+                        "• high-quality signals\n"
+                        "• advanced market structure analysis\n"
+                        "• early access to top trade setups\n"
+                        "• full app features\n"
+                        "• exclusive tools\n"
+                        "• Inner Circle trading community"
+                    ),
+                    "delay": 2,
+                },
+                {
+                    "text": (
+                        "Pricing:\n\n"
+                        "• 1 Month — AED 199.99\n"
+                        "• 6 Months — AED 999.99\n"
+                        "• 12 Months — AED 1,799.99"
+                    ),
+                    "delay": 2,
+                },
+                {
+                    "text": (
+                        "Alternative route:\n\n"
+                        "Open XM account + deposit $250\n"
+                        "→ unlock 6 months of Premium Access"
+                    ),
+                    "delay": 2,
+                },
+                {
+                    "text": "<b>This is not just a signal group.</b>\n\nThis is a full trading ecosystem.",
+                    "delay": 2,
+                    "reply_markup": app_upgrade_markup(),
+                },
+            ])
+            return
+
+        if data == "broker_path":
+            state["step"] = "broker_path"
+
+            await send_sequence(update, context, [
+                {"text": "📈 <b>Alternative Premium Access Route</b>", "delay": 2},
+                {
+                    "text": "Open an XM account using our link, deposit $250, then chat with us to activate your <b>6 months free Premium Access</b>.",
+                    "delay": 3,
+                    "reply_markup": broker_markup(),
+                },
+            ])
+            return
+
+        if data == "human_close":
+            state["step"] = "human_close"
+
+            await send_sequence(update, context, [
+                {"text": "Perfect.", "delay": 1},
+                {"text": "If you want a direct handoff, we can continue the conversation personally from here.", "delay": 2},
+                {
+                    "text": "You can also go straight into the app and unlock Premium Access when ready.",
+                    "delay": 2,
+                    "reply_markup": InlineKeyboardMarkup([
+                        [InlineKeyboardButton("Open Tradepedia App", url=APP_LINK)]
+                    ]),
+                },
+            ])
+            return
+
+        await send_plain_text(update, context, "Unknown action. Type /start to begin again.")
+
+    finally:
+        state[processing_key] = False
+
+def schedule_conversion_journey(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not context.job_queue:
         return
 
-    if data == "premium_offer":
-        state["step"] = "premium_offer"
+    chat_id = update.effective_chat.id
 
-        messages = [
-            {
-                "text": "🚀 <b>Unlock Tradepedia Premium Access</b>",
-                "delay": 2,
-            },
-            {
-                "text": (
-                    "Premium Access unlocks:\n\n"
-                    "• high-quality signals\n"
-                    "• advanced market structure analysis\n"
-                    "• early access to top trade setups\n"
-                    "• full app features\n"
-                    "• exclusive tools\n"
-                    "• Inner Circle trading community"
+    journey = [
+        (2 * 60 * 60, "You’ve seen the free side now. Premium is where users get earlier setups, deeper structure, and stronger trade management."),
+        (24 * 60 * 60, "Today’s reminder: free signals show the direction. Premium shows the full structure before the move."),
+        (2 * 24 * 60 * 60, "Look what Premium members are getting access to: clearer setups, better timing, and trade updates as the position moves."),
+        (4 * 24 * 60 * 60, "Most traders don’t lose because they can’t trade. They lose because they enter late or without structure. Premium is built to fix that."),
+        (7 * 24 * 60 * 60, "If you’ve been watching the free channel, you already understand the difference. Premium Access is the next step."),
+        (10 * 24 * 60 * 60, "Last reminder for now: if you want the full Tradepedia ecosystem — app tools, Premium signals, analysis, and Inner Circle — unlock Premium Access."),
+    ]
+
+    for seconds, text in journey:
+        context.job_queue.run_once(
+            send_conversion_push,
+            when=seconds,
+            data={"chat_id": chat_id, "text": text},
+        )
+
+
+async def send_conversion_push(context: ContextTypes.DEFAULT_TYPE) -> None:
+    job = context.job
+    chat_id = job.data["chat_id"]
+
+    # 🔥 CONDITION: only send image on specific push (e.g. day 2 or 4)
+    if job.data.get("type") == "profit":
+
+        await context.bot.send_chat_action(
+            chat_id=chat_id,
+            action=ChatAction.UPLOAD_PHOTO,
+        )
+
+        with open("images/today-profit.jpeg", "rb") as photo:
+            await context.bot.send_photo(
+                chat_id=chat_id,
+                photo=photo,
+                caption=(
+                    "📈 Look what Premium members saw today.\n\n"
+                    "This is the difference between reacting late… and being positioned early.\n\n"
+                    "Free shows direction.\n"
+                    "Premium shows structure BEFORE the move."
                 ),
-                "delay": 2,
-            },
-            {
-                "text": (
-                    "Pricing:\n\n"
-                    "• 1 Month — AED 199.99\n"
-                    "• 6 Months — AED 999.99\n"
-                    "• 12 Months — AED 1,799.99"
-                ),
-                "delay": 2,
-            },
-            {
-                "text": (
-                    "Alternative route:\n\n"
-                    "Open XM account + deposit $250\n"
-                    "→ unlock 6 months of Premium Access"
-                ),
-                "delay": 2,
-            },
-            {
-                "text": "<b>This is not just a signal group.</b>\n\nThis is a full trading ecosystem.",
-                "delay": 2,
-                "reply_markup": app_upgrade_markup(),
-            },
-        ]
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+                    [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)]
+                ])
+            )
 
-        await send_sequence(update, context, messages)
         return
 
-    if data == "broker_path":
-        state["step"] = "broker_path"
-
-        messages = [
-            {
-                "text": "📈 <b>Alternative Premium Access Route</b>",
-                "delay": 2,
-            },
-            {
-                "text": "Open an XM account using our link, deposit $250, then chat with us to activate your <b>6 months free Premium Access</b>.",
-                "delay": 3,
-                "reply_markup": broker_markup(),
-            },
-        ]
-
-        await send_sequence(update, context, messages)
-        return
-    
-    if data == "human_close":
-        state["step"] = "human_close"
-
-        messages = [
-            {
-                "text": "Perfect.",
-                "delay": 1,
-            },
-            {
-                "text": "If you want a direct handoff, we can continue the conversation personally from here.",
-                "delay": 2,
-            },
-            {
-                "text": "You can also go straight into the app and unlock Premium Access when ready.",
-                "delay": 2,
-                "reply_markup": InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Open Tradepedia App", url=APP_LINK)]
-                ]),
-            },
-        ]
-
-        await send_sequence(update, context, messages)
-        return
-
-    await send_plain_text(update, context, "Unknown action. Type /start to begin again.")
-
+    # 👇 default message (no image)
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=job.data["text"],
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+            [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)]
+        ])
+    )
 
 
 async def send_premium_example(update, context):
     chat_id = update.effective_chat.id
 
-    # 1️⃣ CHART FIRST
-    premium = CONTENT.get("premium_examples", [{"image": "images/premium-gold.png", "caption": "GOLD (H4) — Bearish Reversal"}])[0]
-    image_path = Path(premium["image"])
-    caption = premium.get("caption", "GOLD (H4) — Bearish Reversal")
+    BASE_DIR = Path(__file__).resolve().parent
+    image_path = BASE_DIR / "images" / "premium-gold.png"
 
     if image_path.exists():
         with image_path.open("rb") as photo:
             await context.bot.send_photo(
                 chat_id=chat_id,
                 photo=photo,
-                caption=caption
+                caption="GOLD (H4) — Bearish Reversal"
             )
+    else:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"Premium chart missing: {image_path}"
+        )
 
     await asyncio.sleep(8)
 
-    # 2️⃣ FULL ANALYSIS
     await context.bot.send_message(
         chat_id=chat_id,
         text=(
+            "<b>GOLD (H4) — Bearish Reversal</b>\n\n"
             "<b>Bias:</b> Bearish\n"
             "<b>HTF Alignment:</b> Moderate\n"
             "<b>Score:</b> 6\n"
             "<b>Trade Class:</b> Reversal — Bearish\n"
-            "<b>Risk:</b> 0.75%\n\n"
-
+            "<b>Risk:</b> 0.75% — Standard risk — continuation within prevailing structure.\n\n"
             "<b>Context:</b>\n"
-            "Double top formed, momentum weakening, rejection at highs.\n"
-            "Indicates corrective phase.\n\n"
-
+            "Price has failed to extend significantly beyond the prior high and formed a double top, "
+            "indicating weakening bullish momentum within the uptrend. The rejection and move back "
+            "toward previous support suggest early signs of a corrective phase rather than full trend continuation.\n\n"
             "<b>Entry:</b> 4767.66\n"
             "<b>Stop:</b> 4889.35\n"
             "<b>Target 1:</b> 4695.86\n"
             "<b>Target 2:</b> 4574.17\n"
             "<b>Target 3:</b> 4375.82\n\n"
-
             "“Keep fighting the trend… someone has to be on the wrong side.”\n"
             "— Avramis Despotis"
         ),
         parse_mode="HTML"
     )
 
-    await asyncio.sleep(2)
-
-    await context.bot.send_message(
-    chat_id=chat_id,
-    text="When a signal reaches target, an update is sent:",
-    parse_mode="HTML"
-)
-
     await asyncio.sleep(8)
 
-    # 3️⃣ UPDATE 1
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text="When a signal reaches target, an update is sent:",
+        parse_mode="HTML"
+    )
+
+    await asyncio.sleep(10)
+
     await context.bot.send_message(
         chat_id=chat_id,
         text=(
@@ -1251,9 +1331,8 @@ async def send_premium_example(update, context):
         parse_mode="HTML"
     )
 
-    await asyncio.sleep(2)
+    await asyncio.sleep(10)
 
-    # 4️⃣ FINAL UPDATE
     await context.bot.send_message(
         chat_id=chat_id,
         text=(
@@ -1263,6 +1342,7 @@ async def send_premium_example(update, context):
         ),
         parse_mode="HTML"
     )
+
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.exception("Unhandled exception", exc_info=context.error)
