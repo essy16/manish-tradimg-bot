@@ -549,15 +549,26 @@ async def send_onboarding_message(context: ContextTypes.DEFAULT_TYPE) -> None:
 async def send_intro_video(update, context):
     video_path = Path("videos/intro.mp4")
 
-    with video_path.open("rb") as video:
-        msg = await context.bot.send_video_note(
-            chat_id=update.effective_chat.id,
-            video_note=video,
-        )
+    if not video_path.exists():
+        await send_plain_text(update, context, "Intro video missing. Continuing...")
+        return
 
-    print("\n🔥 COPY THIS FILE_ID:\n", msg.video.file_id, "\n",flush=True)
+    try:
+        with video_path.open("rb") as video:
+            msg = await context.bot.send_video_note(
+                chat_id=update.effective_chat.id,
+                video_note=video,
+                read_timeout=60,
+                write_timeout=60,
+                connect_timeout=60,
+            )
 
+        if msg.video_note:
+            print("\n🔥 COPY THIS FILE_ID:\n", msg.video_note.file_id, "\n", flush=True)
 
+    except Exception:
+        logger.exception("Intro video failed")
+        await send_plain_text(update, context, "Intro video took too long. Continuing...")
 TRADEPEDIA_AI_SYSTEM = """
 You are the Tradepedia Telegram funnel assistant.
 
