@@ -4,6 +4,8 @@ Auto-flow + delays + human-style conversation
 """
 
 from __future__ import annotations
+from datetime import time
+from zoneinfo import ZoneInfo
 
 import asyncio
 import json
@@ -43,7 +45,7 @@ DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 CONTENT_FILE = Path(os.getenv("CONTENT_FILE", "content.json"))
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini").strip()
-
+FREE_CHANNEL_ID = os.getenv("FREE_CHANNEL_ID", "").strip()
 openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 if not BOT_TOKEN:
@@ -114,6 +116,99 @@ def get_user_state(context: ContextTypes.DEFAULT_TYPE) -> dict[str, Any]:
     context.user_data.setdefault("state", {})
     return context.user_data["state"]
 
+def get_user_temperature(context: ContextTypes.DEFAULT_TYPE) -> str:
+    memory = context.user_data.get("memory", {})
+    score = memory.get("conversion_score", 0)
+
+    interests = memory.get("interests", [])
+    objections = memory.get("objections", [])
+
+    if score >= 7 or "premium_pricing" in interests or "xm_route" in interests:
+        return "hot"
+
+    if "trust" in objections or score <= 3:
+        return "cold"
+
+    return "warm"
+
+
+def schedule_premium_noon_followups(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not context.job_queue:
+        return
+
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+    temperature = get_user_temperature(context)
+
+    followups = [
+        ("premium_followup_1", 1),
+        ("premium_followup_2", 2),
+        ("premium_followup_3", 4),
+        ("premium_followup_4", 7),
+        ("premium_followup_5", 10),
+    ]
+
+    for name, days_after in followups:
+        context.job_queue.run_once(
+            send_smart_premium_followup,
+            when=days_after * 24 * 60 * 60,
+            data={
+                "chat_id": chat_id,
+                "temperature": temperature,
+                "day": days_after,
+            },
+            name=f"{name}_{user_id}",
+        )
+
+async def send_smart_premium_followup(context: ContextTypes.DEFAULT_TYPE) -> None:
+    job = context.job
+    chat_id = job.data["chat_id"]
+    temperature = job.data.get("temperature", "warm")
+    day = job.data.get("day", 1)
+
+    if temperature == "hot":
+        text = random.choice([
+            "You’ve already seen enough to understand the difference.\n\nPremium is where you get earlier setups, deeper structure, and trade updates before most people react.",
+            "If you’re serious about trading with structure, Premium Access is the next step.\n\nFree shows you the direction. Premium gives the full execution plan.",
+            "You’re not looking for random signals — you’re looking for structure.\n\nThat’s exactly what Premium Access is built for."
+        ])
+
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+            [InlineKeyboardButton("📈 XM Route: 6 Months Free", callback_data="broker_path")]
+        ])
+
+    elif temperature == "cold":
+        text = random.choice([
+            "No pressure to upgrade yet.\n\nThe smart move is to keep watching the free signals and judge the structure from what you see.",
+            "Trading requires trust, and trust should be earned.\n\nStay in the free channel first. Watch the setups, timing, and updates.",
+            "Don’t rush Premium.\n\nUse the free channel to see how Tradepedia works before making any decision."
+        ])
+
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+            [InlineKeyboardButton("Show Results", callback_data="next_results")]
+        ])
+
+    else:
+        text = random.choice([
+            "By now, you should start seeing the difference between random signals and structured trading.\n\nPremium gives you the deeper analysis behind the move.",
+            "Free helps you observe.\n\nPremium helps you understand the full structure, timing, risk, and updates.",
+            "The next step is simple: keep watching free, or unlock Premium when you want the full trading ecosystem."
+        ])
+
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+            [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)]
+        ])
+
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=f"☀️ <b>Tradepedia Premium Reminder</b>\n\n{text}",
+        parse_mode=ParseMode.HTML,
+        reply_markup=buttons
+    )
+
 
 def load_user_state_store() -> dict[str, Any]:
     return load_json(USER_STATE_FILE, {})
@@ -172,6 +267,21 @@ async def send_plain_text(
         disable_web_page_preview=True,
     )
 
+async def user_has_joined_free_channel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    if not FREE_CHANNEL_ID:
+        return False
+
+    try:
+        member = await context.bot.get_chat_member(
+            chat_id=FREE_CHANNEL_ID,
+            user_id=update.effective_user.id
+        )
+
+        return member.status in ["member", "administrator", "creator"]
+
+    except Exception:
+        logger.exception("Could not verify channel membership")
+        return False
 
 async def send_sequence(
     update: Update,
@@ -212,26 +322,40 @@ async def send_sequence(
 
 
 async def send_results(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    for item in CONTENT["recent_results"]:
-        image_path = Path(item["image"])
-        caption = item.get("caption", "")
+    results = CONTENT.get("recent_results", [])
 
-        if not image_path.exists():
-            await send_plain_text(update, context, f"Missing result image: {item['image']}")
-            continue
+    # send only first result for now to avoid getting stuck
+    if not results:
+        await send_plain_text(update, context, "No result images found yet.")
+        return
 
+    item = results[0]
+    image_path = Path(item["image"])
+    caption = item.get("caption", "")
+
+    if not image_path.exists():
+        await send_plain_text(update, context, f"Missing result image: {item['image']}")
+        return
+
+    try:
         await context.bot.send_chat_action(
             chat_id=update.effective_chat.id,
             action=ChatAction.UPLOAD_PHOTO,
         )
-        await asyncio.sleep(1)
 
         with image_path.open("rb") as photo:
             await context.bot.send_photo(
                 chat_id=update.effective_chat.id,
                 photo=photo,
                 caption=caption,
+                read_timeout=60,
+                write_timeout=60,
+                connect_timeout=60,
             )
+
+    except Exception:
+        logger.exception("Failed to send result image")
+        await send_plain_text(update, context, "Result image took too long to send, continuing the flow.")
 
 
 async def send_testimonials(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -674,16 +798,17 @@ async def show_testimonials_flow(update: Update, context: ContextTypes.DEFAULT_T
     await asyncio.sleep(2)
 
     await send_plain_text(
-        update,
-        context,
-        "Now let me show you what separates Free from Premium.",
-        InlineKeyboardMarkup([
-            [InlineKeyboardButton("Continue", callback_data="next_explain")],
-            [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
-        ])
-    )
-
-
+    update,
+    context,
+    "Now let me show you what separates Free from Premium.",
+    InlineKeyboardMarkup([
+        [InlineKeyboardButton("Continue", callback_data="next_explain")],
+        [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+        [InlineKeyboardButton("✅ I Joined", callback_data="after_free_join")],
+    ])
+)
+    schedule_auto_join_check(update, context)
+    
 async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.message.text:
         return
@@ -894,6 +1019,82 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             ])
         )
 
+async def check_join_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    joined = await user_has_joined_free_channel(update, context)
+
+    await update.message.reply_text(
+        f"FREE_CHANNEL_ID: {FREE_CHANNEL_ID}\n"
+        f"Your user ID: {update.effective_user.id}\n"
+        f"Joined detected: {joined}"
+    )
+
+def schedule_auto_join_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not context.job_queue:
+        return
+
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+
+    context.job_queue.run_repeating(
+        auto_check_join_status,
+        interval=30,
+        first=10,
+        data={
+            "chat_id": chat_id,
+            "user_id": user_id,
+            "checks": 0,
+        },
+        name=f"auto_join_check_{user_id}",
+    )
+
+
+async def auto_check_join_status(context: ContextTypes.DEFAULT_TYPE) -> None:
+    job = context.job
+    chat_id = job.data["chat_id"]
+    user_id = job.data["user_id"]
+    checks = job.data.get("checks", 0)
+
+    if checks >= 20:  # stops after about 10 minutes
+        job.schedule_removal()
+        return
+
+    job.data["checks"] = checks + 1
+
+    try:
+        member = await context.bot.get_chat_member(
+            chat_id=FREE_CHANNEL_ID,
+            user_id=user_id
+        )
+
+        if member.status in ["member", "administrator", "creator"]:
+            job.schedule_removal()
+
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=(
+                    "✅ I can see you’ve joined the free channel.\n\n"
+                    "That’s the perfect place to start — watch the next few signals closely."
+                ),
+                parse_mode=ParseMode.HTML
+            )
+
+            await asyncio.sleep(2)
+
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=(
+                    "Free helps you observe the signals.\n\n"
+                    "Premium is where you get the full structure, earlier setups, trade updates, app tools, and Inner Circle access."
+                ),
+                parse_mode=ParseMode.HTML,
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+                    [InlineKeyboardButton("📈 XM Route: 6 Months Free", callback_data="broker_path")]
+                ])
+            )
+
+    except Exception:
+        logger.exception("Auto join check failed")
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
@@ -1032,7 +1233,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 },
             ])
             return
-
+        
+        
         if data == "next_testimonials":
             state["step"] = "testimonials"
 
@@ -1089,13 +1291,30 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     ]),
                 },
             ])
+            schedule_auto_join_check(update, context)
             return
 
-        if data == "after_free_join":
+        
+        elif data == "after_free_join":
+            joined = await user_has_joined_free_channel(update, context)
+
+            if not joined:
+                await send_plain_text(
+                    update,
+                    context,
+                    "I couldn’t confirm you joined yet.\n\nPlease join the free channel first, then tap ✅ I Joined again.",
+                    InlineKeyboardMarkup([
+                        [InlineKeyboardButton("✅ Join Free Signals Channel", url=FREE_CHANNEL_LINK)],
+                        [InlineKeyboardButton("✅ I Joined", callback_data="after_free_join")]
+                    ])
+                )
+                return
+
             state["step"] = "joined_free"
 
             await schedule_onboarding(update, context)
             schedule_conversion_journey(update, context)
+            schedule_premium_noon_followups(update, context)
 
             image_path = Path("images/i-joined.png")
 
@@ -1104,25 +1323,46 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     await context.bot.send_photo(
                         chat_id=update.effective_chat.id,
                         photo=photo,
-                        caption="✅ Good — that’s the right way to start.\n\nNow watch how the next few trades are structured.",
+                        caption=(
+                            "✅ Since you’ve joined the free channel, that’s the perfect place to start.\n\n"
+                            "Watch the next few signals closely."
+                        ),
                     )
             else:
-                await send_plain_text(update, context, "✅ Good — that’s the right way to start.")
+                await send_plain_text(
+                    update,
+                    context,
+                    (
+                        "✅ Since you’ve joined the free channel, that’s the perfect place to start.\n\n"
+                        "Watch the next few signals closely."
+                    )
+                )
 
             await asyncio.sleep(2)
-            await send_plain_text(update, context, "Pay attention to structure, timing, and risk.")
 
-            await asyncio.sleep(2)
             await send_plain_text(
                 update,
                 context,
-                "Ready to see what Premium includes?",
+                (
+                    "Free helps you observe the signals.\n\n"
+                    "Premium is where you get the full structure, earlier setups, trade updates, app tools, and Inner Circle access."
+                )
+            )
+
+            await asyncio.sleep(2)
+
+            await send_plain_text(
+                update,
+                context,
+                "When you’re ready to go beyond free signals, Premium Access is the next step.",
                 InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Show me Premium Access", callback_data="premium_offer")]
+                    [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+                    [InlineKeyboardButton("📈 XM Route: 6 Months Free", callback_data="broker_path")]
                 ])
             )
             return
-
+        
+        
         if data == "premium_offer":
             state["step"] = "premium_offer"
 
@@ -1355,6 +1595,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("menu", menu_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("status", status_command))
+    app.add_handler(CommandHandler("checkjoin", check_join_command))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_message))
     app.add_error_handler(error_handler)
