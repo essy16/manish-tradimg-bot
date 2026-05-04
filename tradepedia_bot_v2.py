@@ -4,7 +4,7 @@ Auto-flow + delays + human-style conversation
 """
 
 from __future__ import annotations
-from datetime import time
+from datetime import time,datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import asyncio
@@ -1096,6 +1096,103 @@ async def auto_check_join_status(context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception:
         logger.exception("Auto join check failed")
 
+def next_uae_noon_after(days_after: int) -> datetime:
+    dubai = ZoneInfo("Asia/Dubai")
+    now = datetime.now(dubai)
+    target = (now + timedelta(days=days_after)).replace(
+        hour=12, minute=0, second=0, microsecond=0
+    )
+
+    if target <= now:
+        target += timedelta(days=1)
+
+    return target
+
+
+def schedule_free_user_premium_reminders(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not context.job_queue:
+        return
+
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+    temperature = get_user_temperature(context)
+
+    schedule_days = [1, 2, 4, 7, 10]
+
+    for day in schedule_days:
+        context.job_queue.run_once(
+            send_free_user_premium_reminder,
+            when=next_uae_noon_after(day),
+            data={
+                "chat_id": chat_id,
+                "user_id": user_id,
+                "day": day,
+                "temperature": temperature,
+            },
+            name=f"free_user_premium_reminder_{user_id}_{day}",
+        )
+
+
+async def send_free_user_premium_reminder(context: ContextTypes.DEFAULT_TYPE) -> None:
+    job = context.job
+    chat_id = job.data["chat_id"]
+    day = job.data.get("day", 1)
+    temperature = job.data.get("temperature", "warm")
+
+    if temperature == "hot":
+        text = (
+            "You’ve already seen how Tradepedia works from the free side.\n\n"
+            "Premium is where you get earlier setups, deeper structure, trade updates, app tools, and Inner Circle access."
+        )
+    elif temperature == "cold":
+        text = (
+            "No pressure to upgrade yet.\n\n"
+            "Keep watching the free signals first. Trust should come from structure, proof, and consistency."
+        )
+    else:
+        text = (
+            "By now, you should start seeing the difference between random signals and structured trading.\n\n"
+            "Free helps you observe. Premium gives you the full execution plan."
+        )
+
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=f"☀️ <b>Tradepedia Reminder — Day {day}</b>\n\n{text}",
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+            [InlineKeyboardButton("📈 XM Route: 6 Months Free", callback_data="broker_path")]
+        ])
+    )
+
+
+def schedule_free_channel_posts(context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not context.job_queue or not FREE_CHANNEL_ID:
+        return
+
+    context.job_queue.run_daily(
+        post_daily_free_channel_update,
+        time=time(hour=12, minute=0, tzinfo=ZoneInfo("Asia/Dubai")),
+        name="daily_free_channel_update",
+    )
+
+
+async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> None:
+    await context.bot.send_message(
+        chat_id=FREE_CHANNEL_ID,
+        text=(
+            "📊 <b>Tradepedia Daily Reminder</b>\n\n"
+            "Free signals help you observe the market.\n\n"
+            "Premium Access gives deeper structure, earlier setups, trade updates, app tools, and Inner Circle access."
+        ),
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🚀 Unlock Premium Access", url=APP_LINK)]
+        ])
+    )
+
+
+
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
 
@@ -1314,7 +1411,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
             await schedule_onboarding(update, context)
             schedule_conversion_journey(update, context)
-            schedule_premium_noon_followups(update, context)
+            schedule_free_user_premium_reminders(update, context)
 
             image_path = Path("images/i-joined.png")
 
@@ -1599,6 +1696,7 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_message))
     app.add_error_handler(error_handler)
+    schedule_free_channel_posts(app)
 
     return app
 
