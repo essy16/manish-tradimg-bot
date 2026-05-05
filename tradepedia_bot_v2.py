@@ -458,6 +458,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     await send_intro_video(update, context)
 
+    schedule_pre_join_elite_funnel(update, context)
+    schedule_auto_join_check(update, context)
+
     messages = [
        
         {
@@ -611,6 +614,58 @@ If unrelated:
 Politely say you can only help with Tradepedia, signals, Premium Access, app registration, or XM access.
 """
 
+async def send_pre_join_push(context: ContextTypes.DEFAULT_TYPE):
+    job = context.job
+    chat_id = job.data["chat_id"]
+
+    if random.random() > 0.5:
+        with open("images/proof1.jpeg", "rb") as photo:
+            await context.bot.send_photo(
+                chat_id=chat_id,
+                photo=photo,
+                caption="This is what free members are seeing in real time."
+            )
+
+    # 🔥 STOP IF USER ALREADY JOINED
+    try:
+        member = await context.bot.get_chat_member(
+            chat_id=FREE_CHANNEL_ID,
+            user_id=chat_id
+        )
+
+        if member.status in ["member", "administrator", "creator"]:
+            return
+    except:
+        pass
+
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=job.data["text"],
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)]
+        ])
+    )
+
+
+def schedule_pre_join_push(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    
+    if not context.job_queue:
+        return
+
+    chat_id = update.effective_chat.id
+
+    pushes = [
+        (60, "Most people watch signals too late… that’s why they lose."),
+        (180, "Free channel shows setups BEFORE the move — not after."),
+        (300, "You don’t need to trade yet. Just observe the structure first."),
+    ]
+
+    for seconds, text in pushes:
+        context.job_queue.run_once(
+            send_pre_join_push,
+            when=seconds,
+            data={"chat_id": chat_id, "text": text},
+        )
 
 def detect_emotion(user_text: str) -> str:
     text = user_text.lower()
@@ -1202,6 +1257,98 @@ async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> 
         ])
     )
 
+
+def schedule_pre_join_elite_funnel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not context.job_queue:
+        return
+
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+
+    # 1 minute testing delays
+    pushes = [
+        (60, 1),
+        (120, 2),
+        (180, 3),
+        (240, 4),
+    ]
+
+    for seconds, step in pushes:
+        context.job_queue.run_once(
+            send_pre_join_elite_push,
+            when=seconds,
+            data={
+                "chat_id": chat_id,
+                "user_id": user_id,
+                "step": step,
+            },
+            name=f"pre_join_elite_{user_id}_{step}",
+        )
+
+
+async def send_pre_join_elite_push(context: ContextTypes.DEFAULT_TYPE) -> None:
+    job = context.job
+    chat_id = job.data["chat_id"]
+    user_id = job.data["user_id"]
+    step = job.data["step"]
+
+    # Stop if user already joined
+    try:
+        member = await context.bot.get_chat_member(
+            chat_id=FREE_CHANNEL_ID,
+            user_id=user_id,
+        )
+
+        if member.status in ["member", "administrator", "creator"]:
+            return
+
+    except Exception:
+        pass
+
+    messages = {
+        1: (
+            "Quick thought — don’t rush to Premium yet.\n\n"
+            "Start by watching the free signals. You’ll see how structure, timing, and risk are handled before making any decision."
+        ),
+        2: (
+            "Most traders don’t need more random signals.\n\n"
+            "They need to see how a setup is formed, managed, and updated. That’s what you can observe first in the free channel."
+        ),
+        3: (
+            "You don’t need to trade anything today.\n\n"
+            "Just join free, watch how the setups are posted, and decide from evidence — not pressure."
+        ),
+        4: (
+            "Final reminder for now:\n\n"
+            "The free channel is the safest way to judge Tradepedia before Premium. Start there, then upgrade only if the structure makes sense."
+        ),
+    }
+
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+        [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+    ])
+
+    # Step 2 and 4 can include proof image if available
+    if step in [2, 4]:
+        image_path = Path("images/proof1.jpeg")
+
+        if image_path.exists():
+            with image_path.open("rb") as photo:
+                await context.bot.send_photo(
+                    chat_id=chat_id,
+                    photo=photo,
+                    caption=messages[step],
+                    reply_markup=buttons,
+                )
+            return
+
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=messages[step],
+        parse_mode=ParseMode.HTML,
+        reply_markup=buttons,
+    )
 
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
