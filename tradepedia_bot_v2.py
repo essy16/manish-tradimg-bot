@@ -1299,17 +1299,26 @@ async def send_pre_join_elite_push(context: ContextTypes.DEFAULT_TYPE):
 
     if joined:
         # 🔥 USER JOINED → SELL PREMIUM
+        PREMIUM_VARIATIONS = [
+            "You’ve seen how the free signals behave in real time.\n\nPremium positions you before those moves form.",
+
+            "Free shows you the move.\n\nPremium shows you the setup before it happens.",
+
+            "At this point, it’s not about more signals.\n\nIt’s about better timing and structure.",
+
+            "Most traders react late.\n\nPremium is designed to position you early.",
+        ]
+
+        text = random.choice(PREMIUM_VARIATIONS)
+
         await context.bot.send_message(
             chat_id=chat_id,
-            text=(
-                "You've seen how the free signals work.\n\n"
-                "Now imagine getting the full structure BEFORE the move.\n\n"
-                "That’s what Premium gives you."
-            ),
+            text=text,
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("🚀 Unlock Premium", callback_data="premium_offer")]
             ])
         )
+
     else:
         # 🔥 USER NOT JOINED → PUSH TO JOIN
         await context.bot.send_message(
@@ -1713,8 +1722,17 @@ async def send_conversion_push(context: ContextTypes.DEFAULT_TYPE) -> None:
                     + "\n- End with a soft CTA."
                     + "\n- Do not repeat previous wording."
                 ),
-                input=f"Follow-up context: {text_hint}",
-            )
+                input=f"""
+                User situation:
+                {text_hint}
+
+                Generate a follow-up that:
+                - feels new and different
+                - builds on previous exposure
+                - does NOT repeat previous phrases
+                - feels like a human trader speaking
+                """
+                            )
             message = response.output_text.strip()
         else:
             message = text_hint
