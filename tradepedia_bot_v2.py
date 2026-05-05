@@ -140,25 +140,20 @@ def schedule_premium_noon_followups(update: Update, context: ContextTypes.DEFAUL
     user_id = update.effective_user.id
     temperature = get_user_temperature(context)
 
-    followups = [
-        ("premium_followup_1", 1),
-        ("premium_followup_2", 2),
-        ("premium_followup_3", 4),
-        ("premium_followup_4", 7),
-        ("premium_followup_5", 10),
-    ]
+    followups = [1, 2, 4, 7, 10]
 
-    for name, days_after in followups:
+    for day in followups:
         context.job_queue.run_once(
             send_smart_premium_followup,
-            when=days_after * 24 * 60 * 60,
+            when=next_uae_noon_after(day),  # ✅ FIX HERE
             data={
                 "chat_id": chat_id,
                 "temperature": temperature,
-                "day": days_after,
+                "day": day,
             },
-            name=f"{name}_{user_id}",
+            name=f"premium_noon_{user_id}_{day}",
         )
+
 
 async def send_smart_premium_followup(context: ContextTypes.DEFAULT_TYPE) -> None:
     job = context.job
@@ -1766,20 +1761,17 @@ def schedule_conversion_journey(update: Update, context: ContextTypes.DEFAULT_TY
     chat_id = update.effective_chat.id
 
     journey = [
-    (60, "User joined free channel. First Premium reminder."),
-    (120, "User has observed free channel. Explain Premium value."),
-    (180, "User still has not upgraded. Soft urgency without pressure."),
-]
+        (1, "User joined free channel. First Premium reminder."),
+        (2, "User has observed free channel. Explain Premium value."),
+        (4, "User still has not upgraded. Soft urgency without pressure."),
+    ]
 
-    for seconds, text in journey:
+    for day, text in journey:
         context.job_queue.run_once(
             send_conversion_push,
-            when=seconds,
+            when=next_uae_noon_after(day),  # ✅ UAE TIME
             data={"chat_id": chat_id, "text": text},
         )
-
-
-
 
 async def send_conversion_push(context: ContextTypes.DEFAULT_TYPE) -> None:
     job = context.job
