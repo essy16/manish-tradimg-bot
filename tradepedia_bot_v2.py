@@ -1701,13 +1701,10 @@ def schedule_conversion_journey(update: Update, context: ContextTypes.DEFAULT_TY
     chat_id = update.effective_chat.id
 
     journey = [
-        (2 * 60 * 60, "You’ve seen the free side now. Premium is where users get earlier setups, deeper structure, and stronger trade management."),
-        (24 * 60 * 60, "Today’s reminder: free signals show the direction. Premium shows the full structure before the move."),
-        (2 * 24 * 60 * 60, "Look what Premium members are getting access to: clearer setups, better timing, and trade updates as the position moves."),
-        (4 * 24 * 60 * 60, "Most traders don’t lose because they can’t trade. They lose because they enter late or without structure. Premium is built to fix that."),
-        (7 * 24 * 60 * 60, "If you’ve been watching the free channel, you already understand the difference. Premium Access is the next step."),
-        (10 * 24 * 60 * 60, "Last reminder for now: if you want the full Tradepedia ecosystem — app tools, Premium signals, analysis, and Inner Circle — unlock Premium Access."),
-    ]
+    (60, "User joined free channel. First Premium reminder."),
+    (120, "User has observed free channel. Explain Premium value."),
+    (180, "User still has not upgraded. Soft urgency without pressure."),
+]
 
     for seconds, text in journey:
         context.job_queue.run_once(
@@ -1717,46 +1714,56 @@ def schedule_conversion_journey(update: Update, context: ContextTypes.DEFAULT_TY
         )
 
 
+
+
 async def send_conversion_push(context: ContextTypes.DEFAULT_TYPE) -> None:
     job = context.job
     chat_id = job.data["chat_id"]
+    text_hint = job.data.get("text", "")
 
-    # 🔥 CONDITION: only send image on specific push (e.g. day 2 or 4)
-    if job.data.get("type") == "profit":
+    try:
+        if openai_client:
+            response = await asyncio.to_thread(
+                openai_client.responses.create,
+                model=OPENAI_MODEL,
+                instructions=(
+                    TRADEPEDIA_AI_SYSTEM
+                    + "\n\nCreate ONE short Telegram follow-up message."
+                    + "\nPurpose: move a free-channel user toward Premium Access."
+                    + "\nRules:"
+                    + "\n- 2 to 4 short sentences only."
+                    + "\n- No guaranteed profits."
+                    + "\n- No financial advice."
+                    + "\n- Mention structure, timing, trade updates, or Premium benefits."
+                    + "\n- End with a soft CTA."
+                    + "\n- Do not repeat previous wording."
+                ),
+                input=f"Follow-up context: {text_hint}",
+            )
+            message = response.output_text.strip()
+        else:
+            message = text_hint
 
-        await context.bot.send_chat_action(
+        await context.bot.send_message(
             chat_id=chat_id,
-            action=ChatAction.UPLOAD_PHOTO,
+            text=message,
+            parse_mode=ParseMode.HTML,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+                [InlineKeyboardButton("📈 XM Route: 6 Months Free", callback_data="broker_path")]
+            ])
         )
 
-        with open("images/today-profit.jpeg", "rb") as photo:
-            await context.bot.send_photo(
-                chat_id=chat_id,
-                photo=photo,
-                caption=(
-                    "📈 Look what Premium members saw today.\n\n"
-                    "This is the difference between reacting late… and being positioned early.\n\n"
-                    "Free shows direction.\n"
-                    "Premium shows structure BEFORE the move."
-                ),
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
-                    [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)]
-                ])
-            )
-
-        return
-
-    # 👇 default message (no image)
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=job.data["text"],
-        parse_mode=ParseMode.HTML,
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
-            [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)]
-        ])
-    )
+    except Exception:
+        logger.exception("AI conversion follow-up failed")
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=text_hint or "Premium gives you deeper structure, earlier setups, and trade updates when you’re ready.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")]
+            ])
+        )
 
 
 async def send_premium_example(update, context):
