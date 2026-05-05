@@ -888,27 +888,41 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     text_lower = user_text.lower()
     memory = update_user_memory(context, user_text)
+
+    # MONEY / RESULTS
     if any(w in text_lower for w in ["show me the money", "show money", "money", "profit proof", "show profits"]):
-            await send_plain_text(update, context, "Absolutely — let me show you real results first.")
-            await send_results(update, context)
+        await send_plain_text(update, context, "Absolutely — let me show you real results first.")
+        await send_results(update, context)
 
-            await asyncio.sleep(2)
+        await asyncio.sleep(2)
 
-            await send_plain_text(
-                update,
-                context,
-                "If the results make sense, the next step is simple: start with the free channel and observe the next signals live.",
-                InlineKeyboardMarkup([
-                    [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
-                    [InlineKeyboardButton("✅ I Joined", callback_data="after_free_join")],
-                    [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
-                ])
-            )
-            return
+        await send_plain_text(
+            update,
+            context,
+            "If the results make sense, the next step is simple: start with the free channel and observe the next signals live.",
+            InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+                [InlineKeyboardButton("✅ I Joined", callback_data="after_free_join")],
+                [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+            ])
+        )
+        return
 
-
-    if any(w in text_lower for w in ["i don't believe", "i dont believe", "don't believe", "dont believe", "i do not believe", "prove it", "testimonials"]):
-        await send_plain_text(update, context, "Fair — then testimonials are the best place to start.")
+    # DOUBT / TESTIMONIALS
+    if any(w in text_lower for w in [
+        "i don't believe",
+        "i dont believe",
+        "don't believe",
+        "dont believe",
+        "i do not believe",
+        "prove it",
+        "testimonial",
+        "testimonials",
+        "review",
+        "reviews",
+        "feedback"
+    ]):
+        await send_plain_text(update, context, "Fair — testimonials are the best place to start.")
         await show_testimonials_flow(update, context)
 
         await asyncio.sleep(2)
@@ -924,58 +938,58 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             ])
         )
         return
-        
 
+    # JOINED
     if any(w in text_lower for w in ["i joined", "i have joined", "joined", "done", "i am in"]):
-            await schedule_onboarding(update, context)
-            schedule_conversion_journey(update, context)
+        await schedule_onboarding(update, context)
+        schedule_conversion_journey(update, context)
+        schedule_free_user_premium_reminders(update, context)
 
-            image_path = Path("images/i-joined.png")
-            if image_path.exists():
-                with image_path.open("rb") as photo:
-                    await context.bot.send_photo(
-                        chat_id=update.effective_chat.id,
-                        photo=photo,
-                        caption="✅ Good — that’s the right way to start.\n\nNow watch how the next few trades are structured.",
-                    )
-            else:
-                await send_plain_text(update, context, "✅ Good — that’s the right way to start.")
+        image_path = Path("images/i-joined.png")
 
-            await asyncio.sleep(2)
-            await send_plain_text(update, context, "Pay attention to structure, timing, and risk.")
-
-            await asyncio.sleep(2)
-            await send_plain_text(
-                update,
-                context,
-                "Ready to see what Premium includes?",
-                InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Show me Premium Access", callback_data="premium_offer")]
-                ])
-            )
-            return
-
-    if any(w in text_lower for w in ["testimonial", "testimonials", "review", "reviews", "feedback"]):
-            await show_testimonials_flow(update, context)
-            return
-
-    if any(w in text_lower for w in ["result", "results", "proof", "performance", "profits", "profit"]):
-            await send_plain_text(update, context, "Here are recent Tradepedia results.")
-            await send_results(update, context)
-
-            await asyncio.sleep(2)
-
-            await send_plain_text(
-                    update,
-                    context,
-                    "Want to see real testimonials too?",
-                    InlineKeyboardMarkup([
-                        [InlineKeyboardButton("Show Testimonials", callback_data="next_testimonials")],
-                        [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
-                    ])
+        if image_path.exists():
+            with image_path.open("rb") as photo:
+                await context.bot.send_photo(
+                    chat_id=update.effective_chat.id,
+                    photo=photo,
+                    caption="✅ Good — that’s the right way to start.\n\nNow watch how the next few trades are structured.",
                 )
-            return
+        else:
+            await send_plain_text(update, context, "✅ Good — that’s the right way to start.")
 
+        await asyncio.sleep(2)
+        await send_plain_text(update, context, "Pay attention to structure, timing, and risk.")
+
+        await asyncio.sleep(2)
+        await send_plain_text(
+            update,
+            context,
+            "Ready to see what Premium includes?",
+            InlineKeyboardMarkup([
+                [InlineKeyboardButton("Show me Premium Access", callback_data="premium_offer")]
+            ])
+        )
+        return
+
+    # RESULTS
+    if any(w in text_lower for w in ["result", "results", "proof", "performance", "profits", "profit"]):
+        await send_plain_text(update, context, "Here are recent Tradepedia results.")
+        await send_results(update, context)
+
+        await asyncio.sleep(2)
+
+        await send_plain_text(
+            update,
+            context,
+            "Want to see real testimonials too?",
+            InlineKeyboardMarkup([
+                [InlineKeyboardButton("Show Testimonials", callback_data="next_testimonials")],
+                [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+            ])
+        )
+        return
+
+    # MORE PROOF
     if any(w in text_lower for w in ["not convinced", "convince me", "convince me harder", "why should i trust", "show more proof", "more proof"]):
         await send_plain_text(
             update,
@@ -1024,6 +1038,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         return
 
+    # AVRAMIS
     if "avramis" in text_lower:
         await send_plain_text(
             update,
@@ -1040,6 +1055,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         return
 
+    # GREETING
     if any(w in text_lower for w in ["hi", "hello", "hey"]):
         await send_plain_text(
             update,
@@ -1065,6 +1081,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         return
 
+    # DEFAULT AI
     await context.bot.send_chat_action(
         chat_id=update.effective_chat.id,
         action=ChatAction.TYPING,
@@ -1124,6 +1141,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
             ])
         )
+
 
 async def check_join_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     joined = await user_has_joined_free_channel(update, context)
