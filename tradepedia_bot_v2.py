@@ -633,7 +633,10 @@ async def send_pre_join_push(context: ContextTypes.DEFAULT_TYPE):
             user_id=chat_id
         )
 
-        joined = member.status in ["member", "administrator", "creator"]            return
+        joined = member.status in ["member", "administrator", "creator"]
+
+        if joined:
+            return    
     except:
         pass
 
