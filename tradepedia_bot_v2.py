@@ -657,10 +657,11 @@ def schedule_pre_join_push(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
 
     pushes = [
-        (60, "Most people watch signals too late… that’s why they lose."),
-        (180, "Free channel shows setups BEFORE the move — not after."),
-        (300, "You don’t need to trade yet. Just observe the structure first."),
-    ]
+    (120, 1),
+    (300, 2),
+    (600, 3),
+    (900, 4),
+]
 
     for seconds, text in pushes:
         context.job_queue.run_once(
@@ -887,56 +888,93 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     text_lower = user_text.lower()
     memory = update_user_memory(context, user_text)
+    if any(w in text_lower for w in ["show me the money", "show money", "money", "profit proof", "show profits"]):
+            await send_plain_text(update, context, "Absolutely — let me show you real results first.")
+            await send_results(update, context)
+
+            await asyncio.sleep(2)
+
+            await send_plain_text(
+                update,
+                context,
+                "If the results make sense, the next step is simple: start with the free channel and observe the next signals live.",
+                InlineKeyboardMarkup([
+                    [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+                    [InlineKeyboardButton("✅ I Joined", callback_data="after_free_join")],
+                    [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+                ])
+            )
+            return
+
+
+    if any(w in text_lower for w in ["i don't believe", "i dont believe", "don't believe", "dont believe", "i do not believe", "prove it", "testimonials"]):
+        await send_plain_text(update, context, "Fair — then testimonials are the best place to start.")
+        await show_testimonials_flow(update, context)
+
+        await asyncio.sleep(2)
+
+        await send_plain_text(
+            update,
+            context,
+            "If you want to verify it properly, join the free channel first and watch the structure live.",
+            InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+                [InlineKeyboardButton("✅ I Joined", callback_data="after_free_join")],
+                [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+            ])
+        )
+        return
+        
 
     if any(w in text_lower for w in ["i joined", "i have joined", "joined", "done", "i am in"]):
-        await schedule_onboarding(update, context)
-        schedule_conversion_journey(update, context)
+            await schedule_onboarding(update, context)
+            schedule_conversion_journey(update, context)
 
-        image_path = Path("images/i-joined.png")
-        if image_path.exists():
-            with image_path.open("rb") as photo:
-                await context.bot.send_photo(
-                    chat_id=update.effective_chat.id,
-                    photo=photo,
-                    caption="✅ Good — that’s the right way to start.\n\nNow watch how the next few trades are structured.",
-                )
-        else:
-            await send_plain_text(update, context, "✅ Good — that’s the right way to start.")
+            image_path = Path("images/i-joined.png")
+            if image_path.exists():
+                with image_path.open("rb") as photo:
+                    await context.bot.send_photo(
+                        chat_id=update.effective_chat.id,
+                        photo=photo,
+                        caption="✅ Good — that’s the right way to start.\n\nNow watch how the next few trades are structured.",
+                    )
+            else:
+                await send_plain_text(update, context, "✅ Good — that’s the right way to start.")
 
-        await asyncio.sleep(2)
-        await send_plain_text(update, context, "Pay attention to structure, timing, and risk.")
+            await asyncio.sleep(2)
+            await send_plain_text(update, context, "Pay attention to structure, timing, and risk.")
 
-        await asyncio.sleep(2)
-        await send_plain_text(
-            update,
-            context,
-            "Ready to see what Premium includes?",
-            InlineKeyboardMarkup([
-                [InlineKeyboardButton("Show me Premium Access", callback_data="premium_offer")]
-            ])
-        )
-        return
+            await asyncio.sleep(2)
+            await send_plain_text(
+                update,
+                context,
+                "Ready to see what Premium includes?",
+                InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Show me Premium Access", callback_data="premium_offer")]
+                ])
+            )
+            return
 
     if any(w in text_lower for w in ["testimonial", "testimonials", "review", "reviews", "feedback"]):
-        await show_testimonials_flow(update, context)
-        return
+            await show_testimonials_flow(update, context)
+            return
 
     if any(w in text_lower for w in ["result", "results", "proof", "performance", "profits", "profit"]):
-        await send_plain_text(update, context, "Here are recent Tradepedia results.")
-        await send_results(update, context)
+            await send_plain_text(update, context, "Here are recent Tradepedia results.")
+            await send_results(update, context)
 
-        await asyncio.sleep(2)
+            await asyncio.sleep(2)
 
-        await send_plain_text(
-            update,
-            context,
-            "Want to see real testimonials too?",
-            InlineKeyboardMarkup([
-                [InlineKeyboardButton("Show Testimonials", callback_data="next_testimonials")],
-                [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
-            ])
-        )
-        return
+            await send_plain_text(
+                    update,
+                    context,
+                    "Want to see real testimonials too?",
+                    InlineKeyboardMarkup([
+                        [InlineKeyboardButton("Show Testimonials", callback_data="next_testimonials")],
+                        [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+                    ])
+                )
+            return
 
     if any(w in text_lower for w in ["not convinced", "convince me", "convince me harder", "why should i trust", "show more proof", "more proof"]):
         await send_plain_text(
@@ -1289,51 +1327,76 @@ def schedule_pre_join_elite_funnel(update: Update, context: ContextTypes.DEFAULT
 
 
 async def send_pre_join_elite_push(context: ContextTypes.DEFAULT_TYPE):
-    chat_id = context.job.data["chat_id"]
+    job = context.job
+    chat_id = job.data["chat_id"]
+    user_id = job.data["user_id"]
+    step = job.data.get("step", 1)
 
     try:
-        member = await context.bot.get_chat_member(FREE_CHANNEL_ID, chat_id)
+        member = await context.bot.get_chat_member(
+            chat_id=FREE_CHANNEL_ID,
+            user_id=user_id
+        )
         joined = member.status in ["member", "administrator", "creator"]
-    except:
+    except Exception:
         joined = False
 
+    joined_messages = {
+        1: [
+            "Good — you’re already inside the free channel.\n\nNow don’t just watch the signal. Watch how the setup is structured, updated, and managed.",
+            "You’ve started correctly by joining free.\n\nThe next thing to notice is how timing and risk are handled before a trade develops.",
+        ],
+        2: [
+            "Free gives you visibility.\n\nPremium gives you the deeper reasoning behind entries, exits, updates, and trade management.",
+            "Once you understand the free signals, Premium becomes easier to judge.\n\nIt’s not more noise — it’s deeper structure.",
+        ],
+        3: [
+            "Most people only ask, “buy or sell?”\n\nPremium is for traders who want to understand why the trade exists and how it should be managed.",
+            "The real advantage is not receiving more messages.\n\nIt is seeing the plan earlier, with context and structure.",
+        ],
+        4: [
+            "If the free channel is starting to make sense, Premium is the next layer.\n\nThat’s where the full execution plan, app tools, and Inner Circle access come in.",
+            "Stay free if you’re still observing.\n\nBut if you want the complete Tradepedia structure, Premium is where it opens fully.",
+        ],
+    }
+
+    not_joined_messages = {
+        1: [
+            "You haven’t joined the free channel yet.\n\nThat’s the best first step because you can watch real signals before deciding anything.",
+            "No need to pay first.\n\nStart with the free channel and see how Tradepedia posts setups and updates in real time.",
+        ],
+        2: [
+            "Most people judge trading groups from screenshots.\n\nA better way is to join free and watch how the signals are actually managed.",
+            "The free channel lets you observe timing, entries, stops, and updates without pressure.",
+        ],
+        3: [
+            "If you’re still unsure, that’s fine.\n\nJoin free first and use the next few signals as your proof.",
+            "The safest way to verify Tradepedia is simple: watch the free channel before thinking about Premium.",
+        ],
+        4: [
+            "Last reminder for now — the free channel is there so you can judge from evidence, not hype.",
+            "Start free, observe the structure, then decide if Premium makes sense later.",
+        ],
+    }
+
     if joined:
-        # 🔥 USER JOINED → SELL PREMIUM
-        PREMIUM_VARIATIONS = [
-            "You’ve seen how the free signals behave in real time.\n\nPremium positions you before those moves form.",
-
-            "Free shows you the move.\n\nPremium shows you the setup before it happens.",
-
-            "At this point, it’s not about more signals.\n\nIt’s about better timing and structure.",
-
-            "Most traders react late.\n\nPremium is designed to position you early.",
-        ]
-
-        text = random.choice(PREMIUM_VARIATIONS)
-
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=text,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🚀 Unlock Premium", callback_data="premium_offer")]
-            ])
-        )
-
+        text = random.choice(joined_messages.get(step, joined_messages[4]))
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+            [InlineKeyboardButton("📈 XM Route: 6 Months Free", callback_data="broker_path")]
+        ])
     else:
-        # 🔥 USER NOT JOINED → PUSH TO JOIN
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=(
-                "You're still outside.\n\n"
-                "The real signals are happening inside the free channel.\n\n"
-                "Join first — then come back here."
-            ),
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("✅ Join Free Channel", url=FREE_CHANNEL_LINK)],
-                [InlineKeyboardButton("I Joined", callback_data="after_free_join")]
-            ])
-        )
+        text = random.choice(not_joined_messages.get(step, not_joined_messages[4]))
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Join Free Signals Channel", url=FREE_CHANNEL_LINK)],
+            [InlineKeyboardButton("✅ I Joined", callback_data="after_free_join")]
+        ])
 
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=text,
+        reply_markup=buttons
+    )
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
