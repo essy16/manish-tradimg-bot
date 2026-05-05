@@ -633,8 +633,7 @@ async def send_pre_join_push(context: ContextTypes.DEFAULT_TYPE):
             user_id=chat_id
         )
 
-        if member.status in ["member", "administrator", "creator"]:
-            return
+        joined = member.status in ["member", "administrator", "creator"]            return
     except:
         pass
 
@@ -1286,69 +1285,42 @@ def schedule_pre_join_elite_funnel(update: Update, context: ContextTypes.DEFAULT
         )
 
 
-async def send_pre_join_elite_push(context: ContextTypes.DEFAULT_TYPE) -> None:
-    job = context.job
-    chat_id = job.data["chat_id"]
-    user_id = job.data["user_id"]
-    step = job.data["step"]
+async def send_pre_join_elite_push(context: ContextTypes.DEFAULT_TYPE):
+    chat_id = context.job.data["chat_id"]
 
-    # Stop if user already joined
     try:
-        member = await context.bot.get_chat_member(
-            chat_id=FREE_CHANNEL_ID,
-            user_id=user_id,
+        member = await context.bot.get_chat_member(FREE_CHANNEL_ID, chat_id)
+        joined = member.status in ["member", "administrator", "creator"]
+    except:
+        joined = False
+
+    if joined:
+        # 🔥 USER JOINED → SELL PREMIUM
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=(
+                "You've seen how the free signals work.\n\n"
+                "Now imagine getting the full structure BEFORE the move.\n\n"
+                "That’s what Premium gives you."
+            ),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🚀 Unlock Premium", callback_data="premium_offer")]
+            ])
         )
-
-        if member.status in ["member", "administrator", "creator"]:
-            return
-
-    except Exception:
-        pass
-
-    messages = {
-        1: (
-            "Quick thought — don’t rush to Premium yet.\n\n"
-            "Start by watching the free signals. You’ll see how structure, timing, and risk are handled before making any decision."
-        ),
-        2: (
-            "Most traders don’t need more random signals.\n\n"
-            "They need to see how a setup is formed, managed, and updated. That’s what you can observe first in the free channel."
-        ),
-        3: (
-            "You don’t need to trade anything today.\n\n"
-            "Just join free, watch how the setups are posted, and decide from evidence — not pressure."
-        ),
-        4: (
-            "Final reminder for now:\n\n"
-            "The free channel is the safest way to judge Tradepedia before Premium. Start there, then upgrade only if the structure makes sense."
-        ),
-    }
-
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
-        [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
-    ])
-
-    # Step 2 and 4 can include proof image if available
-    if step in [2, 4]:
-        image_path = Path("images/proof1.jpeg")
-
-        if image_path.exists():
-            with image_path.open("rb") as photo:
-                await context.bot.send_photo(
-                    chat_id=chat_id,
-                    photo=photo,
-                    caption=messages[step],
-                    reply_markup=buttons,
-                )
-            return
-
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=messages[step],
-        parse_mode=ParseMode.HTML,
-        reply_markup=buttons,
-    )
+    else:
+        # 🔥 USER NOT JOINED → PUSH TO JOIN
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=(
+                "You're still outside.\n\n"
+                "The real signals are happening inside the free channel.\n\n"
+                "Join first — then come back here."
+            ),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ Join Free Channel", url=FREE_CHANNEL_LINK)],
+                [InlineKeyboardButton("I Joined", callback_data="after_free_join")]
+            ])
+        )
 
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
