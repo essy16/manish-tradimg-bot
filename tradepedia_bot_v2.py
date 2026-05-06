@@ -163,9 +163,10 @@ async def send_smart_premium_followup(context: ContextTypes.DEFAULT_TYPE) -> Non
 
     if temperature == "hot":
         text = random.choice([
-            "You’ve already seen enough to understand the difference.\n\nPremium is where you get earlier setups, deeper structure, and trade updates before most people react.",
-            "If you’re serious about trading with structure, Premium Access is the next step.\n\nFree shows you the direction. Premium gives the full execution plan.",
-            "You’re not looking for random signals — you’re looking for structure.\n\nThat’s exactly what Premium Access is built for."
+            "VIP members were already positioned before this move.\n\nFree shows what is happening. VIP shows the plan before it happens.",
+            "This setup was explained step-by-step inside VIP.\n\nFree is useful, but VIP gives the full structure.",
+            "Free shows the move.\n\nVIP shows the entry logic, trade management, and updates behind the move.",
+            "This is where structure makes the difference.\n\nVIP is not more noise — it is the complete trading experience.",
         ])
 
         buttons = InlineKeyboardMarkup([
@@ -175,9 +176,10 @@ async def send_smart_premium_followup(context: ContextTypes.DEFAULT_TYPE) -> Non
 
     elif temperature == "cold":
         text = random.choice([
-            "No pressure to upgrade yet.\n\nThe smart move is to keep watching the free signals and judge the structure from what you see.",
-            "Trading requires trust, and trust should be earned.\n\nStay in the free channel first. Watch the setups, timing, and updates.",
-            "Don’t rush Premium.\n\nUse the free channel to see how Tradepedia works before making any decision."
+            "No pressure to upgrade yet.\n\nStart with the free channel and watch how the setups are handled.",
+            "The free channel is there so you can judge from evidence, not hype.",
+            "Free gives you a useful starting point.\n\nWatch the timing, updates, and structure first.",
+            "You do not need to decide today.\n\nObserve the free signals first, then decide if VIP makes sense.",
         ])
 
         buttons = InlineKeyboardMarkup([
@@ -187,9 +189,10 @@ async def send_smart_premium_followup(context: ContextTypes.DEFAULT_TYPE) -> Non
 
     else:
         text = random.choice([
-            "By now, you should start seeing the difference between random signals and structured trading.\n\nPremium gives you the deeper analysis behind the move.",
-            "Free helps you observe.\n\nPremium helps you understand the full structure, timing, risk, and updates.",
-            "The next step is simple: keep watching free, or unlock Premium when you want the full trading ecosystem."
+            "Free is useful because it lets you observe.\n\nVIP is where the full breakdown, earlier entries, and trade management happen.",
+            "You’re starting to see the difference.\n\nFree shows direction. VIP shows the complete plan.",
+            "VIP members don’t just receive signals.\n\nThey get structure, context, updates, and the full trading experience.",
+            "The free channel builds trust.\n\nVIP is where the deeper analysis and complete execution plan are shared.",
         ])
 
         buttons = InlineKeyboardMarkup([
@@ -199,11 +202,10 @@ async def send_smart_premium_followup(context: ContextTypes.DEFAULT_TYPE) -> Non
 
     await context.bot.send_message(
         chat_id=chat_id,
-        text=f"☀️ <b>Tradepedia Premium Reminder</b>\n\n{text}",
+        text=f"☀️ <b>Tradepedia Premium Reminder — Day {day}</b>\n\n{text}",
         parse_mode=ParseMode.HTML,
         reply_markup=buttons
     )
-
 
 def load_user_state_store() -> dict[str, Any]:
     return load_json(USER_STATE_FILE, {})
@@ -1203,7 +1205,7 @@ async def auto_check_join_status(context: ContextTypes.DEFAULT_TYPE) -> None:
                 chat_id=chat_id,
                 text=(
                     "Free helps you observe the signals.\n\n"
-                    "Premium is where you get the full structure, earlier setups, trade updates, app tools, and Inner Circle access."
+                    "Watch the next few signals closely.\n\nYou’ll start noticing how timing and structure are handled.\n\nThat’s where the real difference is."
                 ),
                 parse_mode=ParseMode.HTML,
                 reply_markup=InlineKeyboardMarkup([
@@ -1660,7 +1662,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 context,
                 (
                     "Free helps you observe the signals.\n\n"
-                    "Premium is where you get the full structure, earlier setups, trade updates, app tools, and Inner Circle access."
+                    "Watch the next few signals closely.\n\nYou’ll start noticing how timing and structure are handled.\n\nThat’s where the real difference is."
                 )
             )
 
