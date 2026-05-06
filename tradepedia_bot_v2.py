@@ -322,15 +322,17 @@ async def send_results(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         update,
         context,
         (
-            "Absolutely — you can view the live results here.\n\n"
-            "Open it inside Telegram and check the proof directly."
+            "📊 <b>Live Trade Results</b>\n\n"
+            "View the live results here:\n"
+            "https://social.tp-redirect.com/s/Bl1qKplE\n\n"
+            "Check it, then come back here and continue in Telegram."
         ),
         InlineKeyboardMarkup([
-            [InlineKeyboardButton("📊 View Live Results", url="https://social.tp-redirect.com/s/Bl1qKplE")],
-            [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
             [InlineKeyboardButton("🌐 Tradepedia WebApp", url=APP_LINK)],
+            [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
         ])
     )
+
 
 
 async def send_testimonials(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -605,7 +607,7 @@ async def send_pre_join_push(context: ContextTypes.DEFAULT_TYPE):
     try:
         member = await context.bot.get_chat_member(
             chat_id=FREE_CHANNEL_ID,
-            user_id=chat_id
+            user_id=job.data.get("user_id")
         )
 
         joined = member.status in ["member", "administrator", "creator"]
@@ -625,7 +627,7 @@ async def send_pre_join_push(context: ContextTypes.DEFAULT_TYPE):
 
 
 def schedule_pre_join_push(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    
+    user_id = update.effective_user.id
     if not context.job_queue:
         return
 
@@ -642,7 +644,7 @@ def schedule_pre_join_push(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.job_queue.run_once(
             send_pre_join_push,
             when=seconds,
-            data={"chat_id": chat_id, "text": text},
+            data={"chat_id": chat_id, "user_id": user_id, "text": text},
         )
 
 def detect_emotion(user_text: str) -> str:
@@ -1553,28 +1555,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await send_performance_proof(update, context)
             return
 
-        if data == "next_results":
-            state["step"] = "results"
-
-            await send_sequence(update, context, [
-                {"text": "Now let me show you recent live account proof.", "delay": 2},
-            ])
-
+        elif data == "next_results":
             await send_results(update, context)
-
-            await send_sequence(update, context, [
-                {"text": "So now you’ve seen both:", "delay": 2},
-                {"text": "• multi-year consistency\n• recent live execution", "delay": 2},
-                {
-                    "text": "That’s the difference between marketing and real trading.",
-                    "delay": 2,
-                    "reply_markup": InlineKeyboardMarkup([
-                        [InlineKeyboardButton("Show me real testimonials", callback_data="next_testimonials")]
-                    ]),
-                },
-            ])
             return
-        
         
         if data == "next_testimonials":
             state["step"] = "testimonials"
