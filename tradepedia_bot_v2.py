@@ -1637,143 +1637,98 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         
         elif data == "after_free_join":
-            joined = await user_has_joined_free_channel(update, context)
-
-            if not joined:
-                await send_plain_text(
-                    update,
-                    context,
-                    "I couldn’t confirm you joined yet.\n\nPlease join the free channel first, then tap ✅ I Joined again.",
-                    InlineKeyboardMarkup([
-                        [InlineKeyboardButton("✅ Join Free Signals Channel", url=FREE_CHANNEL_LINK)],
-                        [InlineKeyboardButton("✅ I Joined", callback_data="after_free_join")]
-                    ])
-                )
-                return
-
             state["step"] = "joined_free"
 
             await schedule_onboarding(update, context)
             schedule_conversion_journey(update, context)
             schedule_free_user_premium_reminders(update, context)
 
-            image_path = Path("images/i-joined.png")
-
-            if image_path.exists():
-                with image_path.open("rb") as photo:
-                    await context.bot.send_photo(
-                        chat_id=update.effective_chat.id,
-                        photo=photo,
-                        caption=(
-                            "✅ Since you’ve joined the free channel, that’s the perfect place to start.\n\n"
-                            "Watch the next few signals closely."
+            await send_plain_text(
+                        update,
+                        context,
+                        (
+                            "✅ Good — start with the free channel first.\n\n"
+                            "Now watch the next few signals closely. Free helps you observe, but the complete structure, earlier entries, trade updates, and full breakdown are inside the Tradepedia WebApp."
                         ),
+                        InlineKeyboardMarkup([
+                            [InlineKeyboardButton("🌐 Tradepedia WebApp", url=APP_LINK)],
+                            [InlineKeyboardButton("📈 XM Route: 6 Months Free", callback_data="broker_path")]
+                        ])
                     )
-            else:
-                await send_plain_text(
-                    update,
-                    context,
-                    (
-                        "✅ Since you’ve joined the free channel, that’s the perfect place to start.\n\n"
-                        "Watch the next few signals closely."
-                    )
-                )
-
-            await asyncio.sleep(2)
-
-            await send_plain_text(
-                update,
-                context,
-                (
-                    "Free helps you observe the signals.\n\n"
-                    "Watch the next few signals closely.\n\nYou’ll start noticing how timing and structure are handled.\n\nThat’s where the real difference is."
-                )
-            )
-
-            await asyncio.sleep(2)
-
-            await send_plain_text(
-                update,
-                context,
-                "When you’re ready to go beyond free signals, Premium Access is the next step.",
-                InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
-                    [InlineKeyboardButton("📈 XM Route: 6 Months Free", callback_data="broker_path")]
-                ])
-            )
             return
-        
-        
+                
+                
+                
         if data == "premium_offer":
-            state["step"] = "premium_offer"
+                state["step"] = "premium_offer"
 
-            await send_sequence(update, context, [
-                {"text": "🚀 <b>Unlock Tradepedia Premium Access</b>", "delay": 2},
-                {
-                    "text": (
-                        "Premium Access unlocks:\n\n"
-                        "• high-quality signals\n"
-                        "• advanced market structure analysis\n"
-                        "• early access to top trade setups\n"
-                        "• full app features\n"
-                        "• exclusive tools\n"
-                        "• Inner Circle trading community"
-                    ),
-                    "delay": 2,
-                },
-                {
-                    "text": (
-                        "Pricing:\n\n"
-                        "• 1 Month — AED 199.99\n"
-                        "• 6 Months — AED 999.99\n"
-                        "• 12 Months — AED 1,799.99"
-                    ),
-                    "delay": 2,
-                },
-                {
-                    "text": (
-                        "Alternative route:\n\n"
-                        "Open XM account + deposit $250\n"
-                        "→ unlock 6 months of Premium Access"
-                    ),
-                    "delay": 2,
-                },
-                {
-                    "text": "<b>This is not just a signal group.</b>\n\nThis is a full trading ecosystem.",
-                    "delay": 2,
-                    "reply_markup": app_upgrade_markup(),
-                },
-            ])
-            return
+                await send_sequence(update, context, [
+                        {"text": "🚀 <b>Unlock Tradepedia Premium Access</b>", "delay": 2},
+                        {
+                            "text": (
+                                "Premium Access unlocks:\n\n"
+                                "• high-quality signals\n"
+                                "• advanced market structure analysis\n"
+                                "• early access to top trade setups\n"
+                                "• full app features\n"
+                                "• exclusive tools\n"
+                                "• Inner Circle trading community"
+                            ),
+                            "delay": 2,
+                        },
+                        {
+                            "text": (
+                                "Pricing:\n\n"
+                                "• 1 Month — AED 199.99\n"
+                                "• 6 Months — AED 999.99\n"
+                                "• 12 Months — AED 1,799.99"
+                            ),
+                            "delay": 2,
+                        },
+                        {
+                            "text": (
+                                "Alternative route:\n\n"
+                                "Open XM account + deposit $250\n"
+                                "→ unlock 6 months of Premium Access"
+                            ),
+                            "delay": 2,
+                        },
+                        {
+                            "text": "<b>This is not just a signal group.</b>\n\nThis is a full trading ecosystem.",
+                            "delay": 2,
+                            "reply_markup": app_upgrade_markup(),
+                        },
+                    ])
+                return
 
         if data == "broker_path":
-            state["step"] = "broker_path"
+                    state["step"] = "broker_path"
 
-            await send_sequence(update, context, [
-                {"text": "📈 <b>Alternative Premium Access Route</b>", "delay": 2},
-                {
-                    "text": "Open an XM account using our link, deposit $250, then chat with us to activate your <b>6 months free Premium Access</b>.",
-                    "delay": 3,
-                    "reply_markup": broker_markup(),
-                },
-            ])
-            return
+                    await send_sequence(update, context, [
+                        {"text": "📈 <b>Alternative Premium Access Route</b>", "delay": 2},
+                        {
+                            "text": "Open an XM account using our link, deposit $250, then chat with us to activate your <b>6 months free Premium Access</b>.",
+                            "delay": 3,
+                            "reply_markup": broker_markup(),
+                        },
+                    ])
+                    return
 
         if data == "human_close":
-            state["step"] = "human_close"
+                    state["step"] = "human_close"
 
-            await send_sequence(update, context, [
-                {"text": "Perfect.", "delay": 1},
-                {"text": "If you want a direct handoff, we can continue the conversation personally from here.", "delay": 2},
-                {
-                    "text": "You can also go straight into the app and unlock Premium Access when ready.",
-                    "delay": 2,
-                    "reply_markup": InlineKeyboardMarkup([
-                        [InlineKeyboardButton("Open Tradepedia App", url=APP_LINK)]
-                    ]),
-                },
-            ])
-            return
+                    await send_sequence(update, context, [
+                        {"text": "Perfect.", "delay": 1},
+                        {"text": "If you want a direct handoff, we can continue the conversation personally from here.", "delay": 2},
+                        {
+                            "text": "You can also go straight into the app and unlock Premium Access when ready.",
+                            "delay": 2,
+                            "reply_markup": InlineKeyboardMarkup([
+                                [InlineKeyboardButton("Open Tradepedia App", url=APP_LINK)]
+                            ]),
+                        },
+                    ])
+                    return
 
         await send_plain_text(update, context, "Unknown action. Type /start to begin again.")
 
