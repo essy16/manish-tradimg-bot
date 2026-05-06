@@ -224,8 +224,7 @@ def free_join_markup() -> InlineKeyboardMarkup:
 
 def app_upgrade_markup() -> InlineKeyboardMarkup:
     rows = [
-        [InlineKeyboardButton("🚀 Unlock Premium Access", url=APP_LINK)]
-    ]
+        [InlineKeyboardButton("🌐 Tradepedia WebApp", url=APP_LINK)]    ]
 
     if IOS_APP:
         rows.append([InlineKeyboardButton("📱 Download iOS App", url=IOS_APP)])
@@ -319,40 +318,19 @@ async def send_sequence(
 
 
 async def send_results(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    results = CONTENT.get("recent_results", [])
-
-    # send only first result for now to avoid getting stuck
-    if not results:
-        await send_plain_text(update, context, "No result images found yet.")
-        return
-
-    item = results[0]
-    image_path = Path(item["image"])
-    caption = item.get("caption", "")
-
-    if not image_path.exists():
-        await send_plain_text(update, context, f"Missing result image: {item['image']}")
-        return
-
-    try:
-        await context.bot.send_chat_action(
-            chat_id=update.effective_chat.id,
-            action=ChatAction.UPLOAD_PHOTO,
-        )
-
-        with image_path.open("rb") as photo:
-            await context.bot.send_photo(
-                chat_id=update.effective_chat.id,
-                photo=photo,
-                caption=caption,
-                read_timeout=60,
-                write_timeout=60,
-                connect_timeout=60,
-            )
-
-    except Exception:
-        logger.exception("Failed to send result image")
-        await send_plain_text(update, context, "Result image took too long to send, continuing the flow.")
+    await send_plain_text(
+        update,
+        context,
+        (
+            "Absolutely — you can view the live results here.\n\n"
+            "Open it inside Telegram and check the proof directly."
+        ),
+        InlineKeyboardMarkup([
+            [InlineKeyboardButton("📊 View Live Results", url="https://social.tp-redirect.com/s/Bl1qKplE")],
+            [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+            [InlineKeyboardButton("🌐 Tradepedia WebApp", url=APP_LINK)],
+        ])
+    )
 
 
 async def send_testimonials(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -886,6 +864,17 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     text_lower = user_text.lower()
     memory = update_user_memory(context, user_text)
 
+    for key, timezone_name in SUPPORTED_TIMEZONES.items():
+        if key in text_lower:
+            context.user_data["timezone"] = timezone_name
+
+            await send_plain_text(
+                update,
+                context,
+                f"Done — I’ll use your timezone: <b>{timezone_name}</b>."
+            )
+            return
+
     # MONEY / RESULTS
     if any(w in text_lower for w in ["show me the money", "show money", "money", "profit proof", "show profits"]):
         await send_plain_text(update, context, "Absolutely — let me show you real results first.")
@@ -1291,27 +1280,62 @@ def schedule_free_channel_posts(context: ContextTypes.DEFAULT_TYPE) -> None:
     if not context.job_queue or not FREE_CHANNEL_ID:
         return
 
+    dubai = ZoneInfo("Asia/Dubai")
+
+    # 11:00 UAE
     context.job_queue.run_daily(
         post_daily_free_channel_update,
-        time=time(hour=12, minute=0, tzinfo=ZoneInfo("Asia/Dubai")),
-        name="daily_free_channel_update",
+        time=time(hour=11, minute=0, tzinfo=dubai),
+        name="free_channel_11",
     )
 
+    # 19:00 UAE
+    context.job_queue.run_daily(
+        post_daily_free_channel_update,
+        time=time(hour=19, minute=0, tzinfo=dubai),
+        name="free_channel_19",
+    )
 
 async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> None:
+    post_types = [
+        (
+            "🎯 <b>VIP Update</b>\n\n"
+            "VIP members caught this move earlier.\n\n"
+            "Free shows the move.\n"
+            "VIP shows the full structure before it happens."
+        ),
+        (
+            "📈 <b>Trade Update</b>\n\n"
+            "Target 2 / Target 3 already hit inside VIP.\n\n"
+            "This is where trade management and timing make the difference."
+        ),
+        (
+            "📊 <b>Performance Insight</b>\n\n"
+            "Consistent structure leads to consistent results.\n\n"
+            "VIP includes full breakdowns, entries, exits, and updates."
+        ),
+        (
+            "🧠 <b>Market Structure</b>\n\n"
+            "Free signals show direction.\n\n"
+            "VIP explains why the move happens and how it should be managed."
+        ),
+        (
+            "💬 <b>Member Feedback</b>\n\n"
+            "“Caught this early thanks to VIP structure.”\n\n"
+            "That’s the difference between reacting and planning."
+        ),
+    ]
+
+    text = random.choice(post_types)
+
     await context.bot.send_message(
         chat_id=FREE_CHANNEL_ID,
-        text=(
-            "📊 <b>Tradepedia Daily Reminder</b>\n\n"
-            "Free signals help you observe the market.\n\n"
-            "Premium Access gives deeper structure, earlier setups, trade updates, app tools, and Inner Circle access."
-        ),
+        text=text,
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🚀 Unlock Premium Access", url=APP_LINK)]
+            [InlineKeyboardButton("🌐 Tradepedia WebApp", url=APP_LINK)]
         ])
     )
-
 
 def schedule_pre_join_elite_funnel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not context.job_queue:
@@ -1761,19 +1785,60 @@ def schedule_conversion_journey(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     chat_id = update.effective_chat.id
+    timezone_name = get_user_timezone(context)
 
-    journey = [
-        (1, "User joined free channel. First Premium reminder."),
-        (2, "User has observed free channel. Explain Premium value."),
-        (4, "User still has not upgraded. Soft urgency without pressure."),
+    reminders = [
+        (1, 11, "Morning WebApp reminder."),
+        (1, 19, "Evening WebApp reminder."),
+        (2, 11, "Second day morning WebApp reminder."),
+        (2, 19, "Second day evening WebApp reminder."),
+        (4, 11, "Fourth day morning WebApp reminder."),
+        (4, 19, "Fourth day evening WebApp reminder."),
+        (7, 11, "Seventh day WebApp reminder."),
+        (10, 19, "Final WebApp reminder."),
     ]
 
-    for day, text in journey:
+    for day, hour, text in reminders:
+        run_at = next_user_time(hour, timezone_name) + timedelta(days=day - 1)
+
         context.job_queue.run_once(
             send_conversion_push,
-            when=next_uae_noon_after(day),  # ✅ UAE TIME
-            data={"chat_id": chat_id, "text": text},
+            when=run_at,
+            data={
+                "chat_id": chat_id,
+                "text": text,
+                "timezone": timezone_name,
+                "hour": hour,
+            },
         )
+
+
+SUPPORTED_TIMEZONES = {
+    "dubai": "Asia/Dubai",
+    "uae": "Asia/Dubai",
+    "japan": "Asia/Tokyo",
+    "tokyo": "Asia/Tokyo",
+    "kenya": "Africa/Nairobi",
+    "nairobi": "Africa/Nairobi",
+    "uk": "Europe/London",
+    "london": "Europe/London",
+}
+
+
+def get_user_timezone(context: ContextTypes.DEFAULT_TYPE) -> str:
+    return context.user_data.get("timezone", "Asia/Dubai")
+
+
+def next_user_time(hour: int, timezone_name: str) -> datetime:
+    tz = ZoneInfo(timezone_name)
+    now = datetime.now(tz)
+
+    target = now.replace(hour=hour, minute=0, second=0, microsecond=0)
+
+    if target <= now:
+        target += timedelta(days=1)
+
+    return target
 
 async def send_conversion_push(context: ContextTypes.DEFAULT_TYPE) -> None:
     job = context.job
