@@ -332,8 +332,7 @@ async def send_results(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
         ])
     )
-
-
+    schedule_auto_join_check(update, context)
 
 async def send_testimonials(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     for item in CONTENT["testimonials"]:
@@ -878,24 +877,11 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
 
     # MONEY / RESULTS
-    if any(w in text_lower for w in ["show me the money", "show money", "money", "profit proof", "show profits"]):
-        await send_plain_text(update, context, "Absolutely — let me show you real results first.")
+    if any(w in text_lower for w in ["show me the money", "show me money", "show money", "money", "profit proof", "show profits"]):
         await send_results(update, context)
-
-        await asyncio.sleep(2)
-
-        await send_plain_text(
-            update,
-            context,
-            "If the results make sense, the next step is simple: start with the free channel and observe the next signals live.",
-            InlineKeyboardMarkup([
-                [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
-                [InlineKeyboardButton("✅ I Joined", callback_data="after_free_join")],
-                [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
-            ])
-        )
         return
-
+    
+    
     # DOUBT / TESTIMONIALS
     if any(w in text_lower for w in [
         "i don't believe",
