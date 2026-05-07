@@ -264,20 +264,22 @@ async def send_plain_text(
     )
 
 async def user_has_joined_free_channel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    if not FREE_CHANNEL_ID:
-        return False
-
     try:
+        user_id = update.effective_user.id
+
         member = await context.bot.get_chat_member(
             chat_id=FREE_CHANNEL_ID,
-            user_id=update.effective_user.id
+            user_id=user_id
         )
+
+        print("DEBUG MEMBER STATUS:", member.status)
 
         return member.status in ["member", "administrator", "creator"]
 
-    except Exception:
-        logger.exception("Could not verify channel membership")
+    except Exception as e:
+        print("JOIN CHECK ERROR:", e)
         return False
+
 
 async def send_sequence(
     update: Update,
@@ -333,6 +335,24 @@ async def send_results(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         ])
     )
     schedule_auto_join_check(update, context)
+    await asyncio.sleep(2)
+
+    joined = await user_has_joined_free_channel(update, context)
+
+    if joined:
+        await send_plain_text(
+            update,
+            context,
+            "✅ I can see you've joined.\n\nNow let me show you how to access the full structure.",
+            InlineKeyboardMarkup([
+                [InlineKeyboardButton("🌐 Tradepedia WebApp", url=APP_LINK)]
+            ])
+        )
+
+
+async def test_channel_post(context: ContextTypes.DEFAULT_TYPE):
+    print("TEST: Posting to free channel now...")
+    await post_daily_free_channel_update(context)
 
 async def send_testimonials(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     for item in CONTENT["testimonials"]:
@@ -1909,6 +1929,8 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 def build_app() -> Application:
     app = Application.builder().token(BOT_TOKEN).build()
+
+    
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("menu", menu_command))
