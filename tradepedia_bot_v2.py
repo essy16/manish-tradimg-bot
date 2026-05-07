@@ -6,7 +6,7 @@ Auto-flow + delays + human-style conversation
 from __future__ import annotations
 from datetime import time,datetime, timedelta
 from zoneinfo import ZoneInfo
-
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppInfo
 import asyncio
 import json
 import logging
@@ -140,21 +140,23 @@ def schedule_premium_noon_followups(update: Update, context: ContextTypes.DEFAUL
     user_id = update.effective_user.id
     temperature = get_user_temperature(context)
 
-    followups = [1, 2, 4, 7, 10]
+    intervals = [
+        (6 * 60 * 60, 1),    # 6 hours
+        (12 * 60 * 60, 2),   # 12 hours
+        (24 * 60 * 60, 3),   # 24 hours
+    ]
 
-    for day in followups:
+    for seconds, step in intervals:
         context.job_queue.run_once(
             send_smart_premium_followup,
-            when=next_uae_noon_after(day),  # ✅ FIX HERE
+            when=seconds,
             data={
                 "chat_id": chat_id,
                 "temperature": temperature,
-                "day": day,
+                "day": step,
             },
-            name=f"premium_noon_{user_id}_{day}",
+            name=f"premium_followup_{user_id}_{step}",
         )
-
-
 async def send_smart_premium_followup(context: ContextTypes.DEFAULT_TYPE) -> None:
     job = context.job
     chat_id = job.data["chat_id"]
@@ -325,29 +327,19 @@ async def send_results(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         context,
         (
             "📊 <b>Live Trade Results</b>\n\n"
-            "View the live results here:\n"
-            "https://social.tp-redirect.com/s/Bl1qKplE\n\n"
-            "Check it, then come back here and continue in Telegram."
+            "Tap below to view the real Tradepedia results."
         ),
         InlineKeyboardMarkup([
-            [InlineKeyboardButton("🌐 Tradepedia WebApp", url=APP_LINK)],
+            [InlineKeyboardButton(
+                "📊 View Live Results",
+                web_app=WebAppInfo(url="https://social.tp-redirect.com/s/Bl1qKplE")
+            )],
+            [InlineKeyboardButton("💬 Show Real Testimonials", callback_data="next_testimonials")],
             [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
         ])
     )
+
     schedule_auto_join_check(update, context)
-    await asyncio.sleep(2)
-
-    joined = await user_has_joined_free_channel(update, context)
-
-    if joined:
-        await send_plain_text(
-            update,
-            context,
-            "✅ I can see you've joined.\n\nNow let me show you how to access the full structure.",
-            InlineKeyboardMarkup([
-                [InlineKeyboardButton("🌐 Tradepedia WebApp", url=APP_LINK)]
-            ])
-        )
 
 
 async def test_channel_post(context: ContextTypes.DEFAULT_TYPE):
@@ -454,7 +446,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     await send_intro_video(update, context)
 
-    schedule_pre_join_elite_funnel(update, context)
+    # schedule_pre_join_elite_funnel(update, context)
     schedule_auto_join_check(update, context)
 
     messages = [
@@ -836,25 +828,25 @@ async def send_video_testimonials(update, context):
 
     for item in videos:
         video_path = Path(item["video"])
-        caption = item.get("caption", "")
+        caption = item.get("caption", "Real Tradepedia client testimonial.")
 
         if not video_path.exists():
             await send_plain_text(update, context, f"Missing video testimonial: {item['video']}")
             continue
-
-        await context.bot.send_chat_action(
-            chat_id=update.effective_chat.id,
-            action=ChatAction.UPLOAD_VIDEO,
-        )
 
         with video_path.open("rb") as video:
             await context.bot.send_video(
                 chat_id=update.effective_chat.id,
                 video=video,
                 caption=caption,
+                supports_streaming=True,
+                read_timeout=90,
+                write_timeout=90,
+                connect_timeout=90,
             )
 
         await asyncio.sleep(3)
+
 
 async def show_testimonials_flow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await send_plain_text(update, context, "Absolutely — here are real Tradepedia testimonials.")
@@ -884,6 +876,20 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     text_lower = user_text.lower()
     memory = update_user_memory(context, user_text)
+
+    if any(trigger in text_lower for trigger in [
+        "show me money",
+        "show me the money",
+        "show money",
+        "money",
+        "results",
+        "show results",
+        "proof",
+        "profit",
+        "profits",
+    ]):
+        await send_results(update, context)
+        return
 
     for key, timezone_name in SUPPORTED_TIMEZONES.items():
         if key in text_lower:
@@ -1198,19 +1204,7 @@ async def auto_check_join_status(context: ContextTypes.DEFAULT_TYPE) -> None:
 
             await asyncio.sleep(2)
 
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=(
-                    "Free helps you observe the signals.\n\n"
-                    "Watch the next few signals closely.\n\nYou’ll start noticing how timing and structure are handled.\n\nThat’s where the real difference is."
-                ),
-                parse_mode=ParseMode.HTML,
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
-                    [InlineKeyboardButton("📈 XM Route: 6 Months Free", callback_data="broker_path")]
-                ])
-            )
-
+            
     except Exception:
         logger.exception("Auto join check failed")
 
@@ -1562,8 +1556,26 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             return
 
         elif data == "next_results":
+            state["step"] = "results"
+
+            await send_sequence(update, context, [
+                {"text": "Now let me show you recent live account proof.", "delay": 2},
+            ])
+
             await send_results(update, context)
+
+            await send_sequence(update, context, [
+                {"text": "So now you’ve seen the results.", "delay": 2},
+                {
+                    "text": "Next, look at what real users say.",
+                    "delay": 2,
+                    "reply_markup": InlineKeyboardMarkup([
+                        [InlineKeyboardButton("Show real testimonials", callback_data="next_testimonials")]
+                    ]),
+                },
+            ])
             return
+        
         
         if data == "next_testimonials":
             state["step"] = "testimonials"
