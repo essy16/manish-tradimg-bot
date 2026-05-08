@@ -1860,21 +1860,21 @@ async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 
-def schedule_free_channel_posts(context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not context.job_queue or not FREE_CHANNEL_ID:
+def schedule_free_channel_posts(app: Application) -> None:
+    if not app.job_queue or not FREE_CHANNEL_ID:
         return
 
     dubai = ZoneInfo("Asia/Dubai")
 
-    context.job_queue.run_daily(
+    app.job_queue.run_daily(
         post_daily_free_channel_update,
         time=time(hour=11, minute=0, tzinfo=dubai),
         name="free_channel_11",
     )
 
-    context.job_queue.run_daily(
+    app.job_queue.run_daily(
         post_daily_free_channel_update,
-        time=time(hour=19, minute=0, tzinfo=dubai),
+        time=time(hour=19, minute=30, tzinfo=dubai),
         name="free_channel_19",
     )
 
