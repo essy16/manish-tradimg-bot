@@ -1178,7 +1178,7 @@ async def auto_check_join_status(context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = job.data["user_id"]
     checks = job.data.get("checks", 0)
 
-    if checks >= 20:  # stops after about 10 minutes
+    if checks >= 20:
         job.schedule_removal()
         return
 
@@ -1197,16 +1197,36 @@ async def auto_check_join_status(context: ContextTypes.DEFAULT_TYPE) -> None:
                 chat_id=chat_id,
                 text=(
                     "✅ I can see you’ve joined the free channel.\n\n"
-                    "That’s the perfect place to start — watch the next few signals closely."
+                    "Now watch the next few signals closely. Free helps you observe, "
+                    "but the full structure is inside Premium."
                 ),
-                parse_mode=ParseMode.HTML
+                parse_mode=ParseMode.HTML,
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+                    [InlineKeyboardButton("📈 XM Route: 6 Months Free", callback_data="broker_path")]
+                ])
             )
 
-            await asyncio.sleep(2)
+            # schedule premium follow-ups after join
+            for seconds, step in [
+                (6 * 60 * 60, 1),
+                (12 * 60 * 60, 2),
+                (24 * 60 * 60, 3),
+            ]:
+                context.job_queue.run_once(
+                    send_smart_premium_followup,
+                    when=seconds,
+                    data={
+                        "chat_id": chat_id,
+                        "temperature": "warm",
+                        "day": step,
+                    },
+                    name=f"auto_premium_followup_{user_id}_{step}",
+                )
 
-            
     except Exception:
         logger.exception("Auto join check failed")
+
 
 def next_uae_noon_after(days_after: int) -> datetime:
     dubai = ZoneInfo("Asia/Dubai")
@@ -1278,66 +1298,7 @@ async def send_free_user_premium_reminder(context: ContextTypes.DEFAULT_TYPE) ->
     )
 
 
-def schedule_free_channel_posts(context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not context.job_queue or not FREE_CHANNEL_ID:
-        return
 
-    dubai = ZoneInfo("Asia/Dubai")
-
-    # 11:00 UAE
-    context.job_queue.run_daily(
-        post_daily_free_channel_update,
-        time=time(hour=11, minute=0, tzinfo=dubai),
-        name="free_channel_11",
-    )
-
-    # 19:00 UAE
-    context.job_queue.run_daily(
-        post_daily_free_channel_update,
-        time=time(hour=19, minute=0, tzinfo=dubai),
-        name="free_channel_19",
-    )
-
-async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> None:
-    post_types = [
-        (
-            "🎯 <b>VIP Update</b>\n\n"
-            "VIP members caught this move earlier.\n\n"
-            "Free shows the move.\n"
-            "VIP shows the full structure before it happens."
-        ),
-        (
-            "📈 <b>Trade Update</b>\n\n"
-            "Target 2 / Target 3 already hit inside VIP.\n\n"
-            "This is where trade management and timing make the difference."
-        ),
-        (
-            "📊 <b>Performance Insight</b>\n\n"
-            "Consistent structure leads to consistent results.\n\n"
-            "VIP includes full breakdowns, entries, exits, and updates."
-        ),
-        (
-            "🧠 <b>Market Structure</b>\n\n"
-            "Free signals show direction.\n\n"
-            "VIP explains why the move happens and how it should be managed."
-        ),
-        (
-            "💬 <b>Member Feedback</b>\n\n"
-            "“Caught this early thanks to VIP structure.”\n\n"
-            "That’s the difference between reacting and planning."
-        ),
-    ]
-
-    text = random.choice(post_types)
-
-    await context.bot.send_message(
-        chat_id=FREE_CHANNEL_ID,
-        text=text,
-        parse_mode=ParseMode.HTML,
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🌐 Tradepedia WebApp", url=APP_LINK)]
-        ])
-    )
 
 def schedule_pre_join_elite_funnel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not context.job_queue:
@@ -1853,6 +1814,69 @@ async def send_conversion_push(context: ContextTypes.DEFAULT_TYPE) -> None:
                 [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")]
             ])
         )
+
+
+async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> None:
+    post_types = [
+        (
+            "🎯 <b>VIP Update</b>\n\n"
+            "VIP members caught this move earlier.\n\n"
+            "Free shows the move.\n"
+            "VIP shows the full structure before it happens."
+        ),
+        (
+            "📈 <b>Trade Update</b>\n\n"
+            "Target 2 / Target 3 already hit inside VIP.\n\n"
+            "This is where trade management and timing make the difference."
+        ),
+        (
+            "📊 <b>Performance Insight</b>\n\n"
+            "Consistent structure leads to consistent results.\n\n"
+            "VIP includes full breakdowns, entries, exits, and updates."
+        ),
+        (
+            "🧠 <b>Market Structure</b>\n\n"
+            "Free signals show direction.\n\n"
+            "VIP explains why the move happens and how it should be managed."
+        ),
+        (
+            "💬 <b>Member Feedback</b>\n\n"
+            "“Caught this early thanks to VIP structure.”\n\n"
+            "That’s the difference between reacting and planning."
+        ),
+    ]
+
+    text = random.choice(post_types)
+
+    await context.bot.send_message(
+        chat_id=FREE_CHANNEL_ID,
+        text=text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 Tradepedia WebApp", url=APP_LINK)]
+        ])
+    )
+
+
+
+
+def schedule_free_channel_posts(context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not context.job_queue or not FREE_CHANNEL_ID:
+        return
+
+    dubai = ZoneInfo("Asia/Dubai")
+
+    context.job_queue.run_daily(
+        post_daily_free_channel_update,
+        time=time(hour=11, minute=0, tzinfo=dubai),
+        name="free_channel_11",
+    )
+
+    context.job_queue.run_daily(
+        post_daily_free_channel_update,
+        time=time(hour=19, minute=0, tzinfo=dubai),
+        name="free_channel_19",
+    )
 
 
 async def send_premium_example(update, context):
