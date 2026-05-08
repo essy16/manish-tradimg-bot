@@ -1860,23 +1860,52 @@ async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 
+def next_dubai_time(hour: int, minute: int = 0) -> datetime:
+    dubai = ZoneInfo("Asia/Dubai")
+    now = datetime.now(dubai)
+
+    target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+    if target <= now:
+        target += timedelta(days=1)
+
+    return target
+
+
+async def post_free_channel_and_reschedule(context: ContextTypes.DEFAULT_TYPE) -> None:
+    await post_daily_free_channel_update(context)
+
+    # Schedule tomorrow same time again
+    job_name = context.job.name
+
+    if job_name == "free_channel_11":
+        next_run = next_dubai_time(11, 0)
+    else:
+        next_run = next_dubai_time(19, 0)
+
+    context.job_queue.run_once(
+        post_free_channel_and_reschedule,
+        when=next_run,
+        name=job_name,
+    )
+
+
 def schedule_free_channel_posts(app: Application) -> None:
     if not app.job_queue or not FREE_CHANNEL_ID:
         return
 
-    dubai = ZoneInfo("Asia/Dubai")
-
-    app.job_queue.run_daily(
-        post_daily_free_channel_update,
-        time=time(hour=11, minute=0, tzinfo=dubai),
+    app.job_queue.run_once(
+        post_free_channel_and_reschedule,
+        when=next_dubai_time(11, 0),
         name="free_channel_11",
     )
 
-    app.job_queue.run_daily(
-        post_daily_free_channel_update,
-        time=time(hour=19, minute=30, tzinfo=dubai),
+    app.job_queue.run_once(
+        post_free_channel_and_reschedule,
+        when=next_dubai_time(19, ),
         name="free_channel_19",
     )
+
 
 
 async def send_premium_example(update, context):
