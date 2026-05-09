@@ -1702,9 +1702,10 @@ def schedule_conversion_journey(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     chat_id = update.effective_chat.id
-    timezone_name = get_user_timezone(context)
+    user_id = update.effective_user.id
+    dubai = ZoneInfo("Asia/Dubai")
 
-    reminders = [
+    followups = [
         (1, 11, "Morning WebApp reminder."),
         (1, 19, "Evening WebApp reminder."),
         (2, 11, "Second day morning WebApp reminder."),
@@ -1715,8 +1716,13 @@ def schedule_conversion_journey(update: Update, context: ContextTypes.DEFAULT_TY
         (10, 19, "Final WebApp reminder."),
     ]
 
-    for day, hour, text in reminders:
-        run_at = next_user_time(hour, timezone_name) + timedelta(days=day - 1)
+    now = datetime.now(dubai)
+
+    for day, hour, text in followups:
+        run_at = now.replace(hour=hour, minute=0, second=0, microsecond=0) + timedelta(days=day - 1)
+
+        if run_at <= now:
+            run_at += timedelta(days=1)
 
         context.job_queue.run_once(
             send_conversion_push,
@@ -1724,10 +1730,12 @@ def schedule_conversion_journey(update: Update, context: ContextTypes.DEFAULT_TY
             data={
                 "chat_id": chat_id,
                 "text": text,
-                "timezone": timezone_name,
+                "timezone": "Asia/Dubai",
                 "hour": hour,
             },
+            name=f"private_followup_{user_id}_{day}_{hour}",
         )
+
 
 
 SUPPORTED_TIMEZONES = {
@@ -1869,19 +1877,22 @@ def next_dubai_time(hour: int, minute: int = 0) -> datetime:
     if target <= now:
         target += timedelta(days=1)
 
+    print(f"NEXT RUN for {hour}:{minute:02d} UAE =", target)
+
     return target
 
 
 async def post_free_channel_and_reschedule(context: ContextTypes.DEFAULT_TYPE) -> None:
+    print("FREE CHANNEL POST FIRED:", datetime.now(ZoneInfo("Asia/Dubai")))
+
     await post_daily_free_channel_update(context)
 
-    # Schedule tomorrow same time again
     job_name = context.job.name
 
     if job_name == "free_channel_11":
         next_run = next_dubai_time(11, 0)
     else:
-        next_run = next_dubai_time(19, 0)
+        next_run = next_dubai_time(20, 26)
 
     context.job_queue.run_once(
         post_free_channel_and_reschedule,
@@ -1894,17 +1905,21 @@ def schedule_free_channel_posts(app: Application) -> None:
     if not app.job_queue or not FREE_CHANNEL_ID:
         return
 
-    app.job_queue.run_once(
-        post_free_channel_and_reschedule,
-        when=next_dubai_time(11, 0),
+    dubai = ZoneInfo("Asia/Dubai")
+
+    app.job_queue.run_daily(
+        post_daily_free_channel_update,
+        time=time(hour=11, minute=0, tzinfo=dubai),
         name="free_channel_11",
     )
 
-    app.job_queue.run_once(
-        post_free_channel_and_reschedule,
-        when=next_dubai_time(19, ),
+    app.job_queue.run_daily(
+        post_daily_free_channel_update,
+        time=time(hour=19, minute=0, tzinfo=dubai),
         name="free_channel_19",
     )
+
+    print("FREE CHANNEL POSTS SCHEDULED FOR 11:00 AND 19:00 UAE")
 
 
 
