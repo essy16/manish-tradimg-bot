@@ -13,7 +13,23 @@
   ],
   "video_testimonials": [
   {
-    "video": "videos/testimonial_fixed.mp4",
+    "video": "videos/Testimonial_India_01_fixed.mp4",
+    "caption": "Real Tradepedia client testimonial."
+  },
+  {
+    "video": "videos/Testimonial_India_02_fixed.mp4",
+    "caption": "Real Tradepedia client testimonial."
+  },
+  {
+    "video": "videos/Testimonial_New_01_fixed.mp4",
+    "caption": "Real Tradepedia client testimonial."
+  },
+  {
+    "video": "videos/Testimonial_New_02_fixed.mp4",
+    "caption": "Real Tradepedia client testimonial."
+  },
+  {
+    "video": "videos/Testimonial_T1_fixed.mp4",
     "caption": "Real Tradepedia client testimonial."
   }
 ],

@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import Any
 from openai import OpenAI
 from dotenv import load_dotenv
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode, ChatAction
 from telegram.ext import (
     Application,
@@ -53,6 +52,7 @@ if not BOT_TOKEN:
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 USER_STATE_FILE = DATA_DIR / "user_state.json"
+CHANNEL_POST_STATE_FILE = DATA_DIR / "channel_post_state.json"
 
 
 DEFAULT_CONTENT = {
@@ -826,26 +826,37 @@ def get_buttons_for_message(user_text: str, memory: dict[str, Any]) -> InlineKey
 async def send_video_testimonials(update, context):
     videos = CONTENT.get("video_testimonials", [])
 
-    for item in videos:
-        video_path = Path(item["video"])
-        caption = item.get("caption", "Real Tradepedia client testimonial.")
+    if not videos:
+        await send_plain_text(update, context, "No testimonial videos found yet.")
+        return
 
-        if not video_path.exists():
-            await send_plain_text(update, context, f"Missing video testimonial: {item['video']}")
-            continue
+    item = random.choice(videos)
 
-        with video_path.open("rb") as video:
-            await context.bot.send_video(
-                chat_id=update.effective_chat.id,
-                video=video,
-                caption=caption,
-                supports_streaming=True,
-                read_timeout=90,
-                write_timeout=90,
-                connect_timeout=90,
-            )
+    video_path = Path(item["video"])
+    caption = item.get("caption", "Real Tradepedia client testimonial.")
 
-        await asyncio.sleep(3)
+    if not video_path.exists():
+        await send_plain_text(update, context, f"Missing video testimonial: {item['video']}")
+        return
+
+    await context.bot.send_chat_action(
+        chat_id=update.effective_chat.id,
+        action=ChatAction.UPLOAD_VIDEO,
+    )
+
+    with video_path.open("rb") as video:
+        await context.bot.send_video(
+            chat_id=update.effective_chat.id,
+            video=video,
+            caption=caption,
+            supports_streaming=True,
+            read_timeout=120,
+            write_timeout=120,
+            connect_timeout=120,
+        )
+
+
+
 
 
 async def show_testimonials_flow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1824,102 +1835,113 @@ async def send_conversion_push(context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 
+def channel_cta_markup() -> InlineKeyboardMarkup:
+    rows = [[InlineKeyboardButton("🌐 Tradepedia WebApp", url=APP_LINK)]]
+
+    if IOS_APP:
+        rows.append([InlineKeyboardButton("📱 iOS App", url=IOS_APP)])
+
+    if ANDROID_APP:
+        rows.append([InlineKeyboardButton("🤖 Google Play / Android", url=ANDROID_APP)])
+
+    if BROKER_LINK:
+        rows.append([InlineKeyboardButton("📈 XM Route: 6 Months Free", url=BROKER_LINK)])
+
+    return InlineKeyboardMarkup(rows)
+
+
+def should_send_vip_session_reminder(now: datetime) -> bool:
+    """
+    Alternating 2-week cadence:
+    Week A: Monday + Thursday
+    Week B: Tuesday + Friday
+    Repeats continuously.
+    """
+    iso_week = now.isocalendar().week
+    weekday = now.weekday()  # Monday=0, Tuesday=1, Thursday=3, Friday=4
+
+    if iso_week % 2 == 1:
+        return weekday in (0, 3)  # Monday, Thursday
+
+    return weekday in (1, 4)  # Tuesday, Friday
+
+
+def load_channel_post_state() -> dict[str, Any]:
+    return load_json(CHANNEL_POST_STATE_FILE, {})
+
+
+def save_channel_post_state(state: dict[str, Any]) -> None:
+    save_json(CHANNEL_POST_STATE_FILE, state)
+
+
 async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> None:
-    post_types = [
-        (
-            "🎯 <b>VIP Update</b>\n\n"
-            "VIP members caught this move earlier.\n\n"
-            "Free shows the move.\n"
-            "VIP shows the full structure before it happens."
-        ),
-        (
-            "📈 <b>Trade Update</b>\n\n"
-            "Target 2 / Target 3 already hit inside VIP.\n\n"
-            "This is where trade management and timing make the difference."
-        ),
-        (
-            "📊 <b>Performance Insight</b>\n\n"
-            "Consistent structure leads to consistent results.\n\n"
-            "VIP includes full breakdowns, entries, exits, and updates."
-        ),
-        (
-            "🧠 <b>Market Structure</b>\n\n"
-            "Free signals show direction.\n\n"
-            "VIP explains why the move happens and how it should be managed."
-        ),
-        (
-            "💬 <b>Member Feedback</b>\n\n"
-            "“Caught this early thanks to VIP structure.”\n\n"
-            "That’s the difference between reacting and planning."
-        ),
-    ]
+    """Post the premium/VIP promotional message to the free channel."""
+    if not FREE_CHANNEL_ID:
+        print("FREE_CHANNEL_ID is missing. Channel post skipped.")
+        return
 
-    text = random.choice(post_types)
-
-    await context.bot.send_message(
-        chat_id=FREE_CHANNEL_ID,
-        text=text,
-        parse_mode=ParseMode.HTML,
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🌐 Tradepedia WebApp", url=APP_LINK)]
-        ])
+    text = (
+        "🔥 <b>VIP Session Reminder</b>\n\n"
+        "I’m starting a trading session in my VIP channel in 15 minutes.\n\n"
+        "Free shows you the signal. VIP shows you the full plan, timing, structure, "
+        "risk management, and updates as the trade develops.\n\n"
+        "If you want the complete Tradepedia experience, use the links below."
     )
 
+    try:
+        await context.bot.send_message(
+            chat_id=FREE_CHANNEL_ID,
+            text=text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=channel_cta_markup(),
+        )
+        print("FREE CHANNEL POST SENT:", datetime.now(ZoneInfo("Asia/Dubai")))
+    except Exception:
+        logger.exception("Failed to post to free channel")
 
 
-
-def next_dubai_time(hour: int, minute: int = 0) -> datetime:
+async def check_and_post_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Runs every day and only posts on the required alternating schedule.
+    This avoids missed/duplicate posts and makes the timing stable on VPS restarts.
+    """
     dubai = ZoneInfo("Asia/Dubai")
     now = datetime.now(dubai)
 
-    target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if not should_send_vip_session_reminder(now):
+        print("No free-channel post today:", now.strftime("%A %Y-%m-%d %H:%M UAE"))
+        return
 
-    if target <= now:
-        target += timedelta(days=1)
+    today_key = now.strftime("%Y-%m-%d")
+    state = load_channel_post_state()
 
-    print(f"NEXT RUN for {hour}:{minute:02d} UAE =", target)
-
-    return target
-
-
-async def post_free_channel_and_reschedule(context: ContextTypes.DEFAULT_TYPE) -> None:
-    print("FREE CHANNEL POST FIRED:", datetime.now(ZoneInfo("Asia/Dubai")))
+    if state.get("last_free_channel_post_date") == today_key:
+        print("Free-channel post already sent today:", today_key)
+        return
 
     await post_daily_free_channel_update(context)
 
-    job_name = context.job.name
-
-    if job_name == "free_channel_11":
-        next_run = next_dubai_time(11, 0)
-    else:
-        next_run = next_dubai_time(20, 26)
-
-    context.job_queue.run_once(
-        post_free_channel_and_reschedule,
-        when=next_run,
-        name=job_name,
-    )
+    state["last_free_channel_post_date"] = today_key
+    state["last_free_channel_post_time"] = now.isoformat()
+    save_channel_post_state(state)
 
 
 def schedule_free_channel_posts(app: Application) -> None:
     if not app.job_queue or not FREE_CHANNEL_ID:
+        print("FREE CHANNEL SCHEDULE NOT STARTED", app.job_queue, FREE_CHANNEL_ID)
         return
 
     dubai = ZoneInfo("Asia/Dubai")
 
+    # Runs daily, but check_and_post_free_channel_update only sends on:
+    # Week A: Monday + Thursday; Week B: Tuesday + Friday.
     app.job_queue.run_daily(
-        post_daily_free_channel_update,
-        time=time(hour=11, minute=0, tzinfo=dubai),
-        name="free_channel_11",
+        check_and_post_free_channel_update,
+        time=time(hour=8, minute=0, tzinfo=dubai),
+        name="free_channel_vip_session_checker",
     )
 
-    app.job_queue.run_daily(
-        post_daily_free_channel_update,
-        time=time(hour=19, minute=0, tzinfo=dubai),
-        name="free_channel_19",
-    )
-
-    print("FREE CHANNEL POSTS SCHEDULED FOR 11:00 AND 19:00 UAE")
+    print("FREE CHANNEL VIP SESSION CHECKER SCHEDULED FOR 08:00 UAE")
 
 
 
@@ -2003,6 +2025,11 @@ async def send_premium_example(update, context):
     )
 
 
+async def test_channel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await post_daily_free_channel_update(context)
+    await update.message.reply_text("Test free-channel message sent.")
+
+
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.exception("Unhandled exception", exc_info=context.error)
 
@@ -2017,6 +2044,7 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("status", status_command))
     app.add_handler(CommandHandler("checkjoin", check_join_command))
+    app.add_handler(CommandHandler("testchannel", test_channel_command))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_message))
     app.add_error_handler(error_handler)
