@@ -823,26 +823,32 @@ def get_buttons_for_message(user_text: str, memory: dict[str, Any]) -> InlineKey
 
 
 
-async def send_video_testimonials(update, context):
+async def send_video_testimonials(update, context, index: int = 0):
     videos = CONTENT.get("video_testimonials", [])
 
     if not videos:
         await send_plain_text(update, context, "No testimonial videos found yet.")
         return
 
-    item = random.choice(videos)
+    if index >= len(videos):
+        await send_plain_text(
+            update,
+            context,
+            "That’s the last testimonial for now.\n\nNext step: start free or unlock Premium.",
+            InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+                [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+            ])
+        )
+        return
 
+    item = videos[index]
     video_path = Path(item["video"])
     caption = item.get("caption", "Real Tradepedia client testimonial.")
 
     if not video_path.exists():
         await send_plain_text(update, context, f"Missing video testimonial: {item['video']}")
         return
-
-    await context.bot.send_chat_action(
-        chat_id=update.effective_chat.id,
-        action=ChatAction.UPLOAD_VIDEO,
-    )
 
     with video_path.open("rb") as video:
         await context.bot.send_video(
@@ -855,28 +861,33 @@ async def send_video_testimonials(update, context):
             connect_timeout=120,
         )
 
+    buttons = []
 
+    if index + 1 < len(videos):
+        buttons.append([
+            InlineKeyboardButton("View More Testimonials", callback_data=f"more_testimonials:{index + 1}")
+        ])
+
+    buttons.append([InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)])
+    buttons.append([InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")])
+
+    await send_plain_text(
+        update,
+        context,
+        "Want to see another real testimonial?",
+        InlineKeyboardMarkup(buttons)
+    )
 
 
 
 async def show_testimonials_flow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await send_plain_text(update, context, "Absolutely — here are real Tradepedia testimonials.")
-    await send_video_testimonials(update, context)
-
-    await asyncio.sleep(2)
-
-    await send_plain_text(
-    update,
-    context,
-    "Now let me show you what separates Free from Premium.",
-    InlineKeyboardMarkup([
-        [InlineKeyboardButton("Continue", callback_data="next_explain")],
-        [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
-        [InlineKeyboardButton("✅ I Joined", callback_data="after_free_join")],
-    ])
-)
+    await send_plain_text(update, context, "Absolutely — here’s one real Tradepedia testimonial.")
+    await send_video_testimonials(update, context, index=0)
     schedule_auto_join_check(update, context)
-    
+
+
+
+
 async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.message.text:
         return
@@ -1421,6 +1432,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     state = get_user_state(context)
     data = query.data or ""
+
+    if data.startswith("more_testimonials:"):
+        try:
+            index = int(data.split(":")[1])
+        except Exception:
+            index = 0
+
+        await send_video_testimonials(update, context, index=index)
+        return
 
     last_action = state.get("last_action")
     last_action_time = state.get("last_action_time", 0)
