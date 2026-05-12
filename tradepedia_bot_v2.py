@@ -225,14 +225,11 @@ def free_join_markup() -> InlineKeyboardMarkup:
 
 
 def app_upgrade_markup() -> InlineKeyboardMarkup:
-    rows = [
-        [InlineKeyboardButton("🌐 Tradepedia WebApp", url=APP_LINK)]    ]
-
-    if IOS_APP:
-        rows.append([InlineKeyboardButton("📱 Download iOS App", url=IOS_APP)])
-
-    if ANDROID_APP:
-        rows.append([InlineKeyboardButton("🤖 Download Android App", url=ANDROID_APP)])
+    rows = [[
+        InlineKeyboardButton("🌐 Tradepedia WebApp", url=APP_LINK),
+        InlineKeyboardButton("📱 iOS App", url=IOS_APP),
+        InlineKeyboardButton("🤖 Android", url=ANDROID_APP),
+]]
 
     if BROKER_LINK:
         rows.append([InlineKeyboardButton("📈 XM Route: Unlock 6 Months", callback_data="broker_path")])
