@@ -1869,18 +1869,15 @@ def channel_cta_markup() -> InlineKeyboardMarkup:
 
 def should_send_vip_session_reminder(now: datetime) -> bool:
     """
-    Alternating 2-week cadence:
-    Week A: Monday + Thursday
-    Week B: Tuesday + Friday
-    Repeats continuously.
+    Send every 3 days starting from 2026-05-12.
     """
-    iso_week = now.isocalendar().week
-    weekday = now.weekday()  # Monday=0, Tuesday=1, Thursday=3, Friday=4
+    start_date = datetime(2026, 5, 12, tzinfo=ZoneInfo("Asia/Dubai")).date()
 
-    if iso_week % 2 == 1:
-        return weekday in (0, 3)  # Monday, Thursday
+    days_since = (now.date() - start_date).days
 
-    return weekday in (1, 4)  # Tuesday, Friday
+    return days_since % 3 == 0
+
+
 
 
 def load_channel_post_state() -> dict[str, Any]:
@@ -1954,7 +1951,7 @@ def schedule_free_channel_posts(app: Application) -> None:
     # Week A: Monday + Thursday; Week B: Tuesday + Friday.
     app.job_queue.run_daily(
         check_and_post_free_channel_update,
-        time=time(hour=8, minute=0, tzinfo=dubai),
+        time=time(hour=16, minute= 15, tzinfo=dubai),
         name="free_channel_vip_session_checker",
     )
 
