@@ -1867,15 +1867,8 @@ def channel_cta_markup() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
-def should_send_vip_session_reminder(now: datetime) -> bool:
-    """
-    Send on:
-    Monday, Wednesday, Friday, Saturday
-    """
-    weekday = now.weekday()
 
-    # Monday=0, Wednesday=2, Friday=4, Saturday=5
-    return weekday in [0, 2, 4, 5]
+
 
 def load_channel_post_state() -> dict[str, Any]:
     return load_json(CHANNEL_POST_STATE_FILE, {})
@@ -1919,9 +1912,7 @@ async def check_and_post_free_channel_update(context: ContextTypes.DEFAULT_TYPE)
     dubai = ZoneInfo("Asia/Dubai")
     now = datetime.now(dubai)
 
-    if not should_send_vip_session_reminder(now):
-        print("No free-channel post today:", now.strftime("%A %Y-%m-%d %H:%M UAE"))
-        return
+    
 
     today_key = now.strftime("%Y-%m-%d")
     state = load_channel_post_state()
@@ -1937,22 +1928,28 @@ async def check_and_post_free_channel_update(context: ContextTypes.DEFAULT_TYPE)
     save_channel_post_state(state)
 
 
-def schedule_free_channel_posts(app: Application) -> None:
-    if not app.job_queue or not FREE_CHANNEL_ID:
-        print("FREE CHANNEL SCHEDULE NOT STARTED", app.job_queue, FREE_CHANNEL_ID)
+def schedule_free_channel_posts(context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not context.job_queue or not FREE_CHANNEL_ID:
         return
 
     dubai = ZoneInfo("Asia/Dubai")
 
-    # Runs daily, but check_and_post_free_channel_update only sends on:
-    # Week A: Monday + Thursday; Week B: Tuesday + Friday.
-    app.job_queue.run_daily(
-        check_and_post_free_channel_update,
-        time=time(hour=19, minute=0, tzinfo=dubai),
-        name="free_channel_vip_session_checker",
+    # Daily at 12:00 PM UAE
+    context.job_queue.run_daily(
+        post_daily_free_channel_update,
+        time=time(hour=12, minute=0, tzinfo=dubai),
+        name="free_channel_12pm",
     )
 
-    print("FREE CHANNEL VIP SESSION CHECKER SCHEDULED FOR 08:00 UAE")
+    # Daily at 7:00 PM UAE
+    context.job_queue.run_daily(
+        post_daily_free_channel_update,
+        time=time(hour=19, minute=0, tzinfo=dubai),
+        name="free_channel_7pm",
+    )
+
+    print("FREE CHANNEL POSTS SCHEDULED FOR 12:00 PM UAE AND 7:00 PM UAE")
+
 
 
 
