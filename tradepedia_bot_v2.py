@@ -1934,24 +1934,16 @@ def schedule_free_channel_posts(context: ContextTypes.DEFAULT_TYPE) -> None:
 
     dubai = ZoneInfo("Asia/Dubai")
 
-    # Daily at 12:00 PM UAE
+    # Monday-Friday at 10:45 AM UAE
     context.job_queue.run_daily(
         post_daily_free_channel_update,
-        time=time(hour=12, minute=0, tzinfo=dubai),
-        name="free_channel_12pm",
+        time=time(hour=10, minute=45, tzinfo=dubai),
+        days=(0, 1, 2, 3, 4),
+        name="free_channel_morning",
     )
 
-    # Daily at 7:00 PM UAE
-    context.job_queue.run_daily(
-        post_daily_free_channel_update,
-        time=time(hour=19, minute=0, tzinfo=dubai),
-        name="free_channel_7pm",
-    )
 
-    print("FREE CHANNEL POSTS SCHEDULED FOR 12:00 PM UAE AND 7:00 PM UAE")
-
-
-
+    print("FREE CHANNEL POSTS SCHEDULED MONDAY-FRIDAY AT 10:45 AM UAE AND 7:00 PM UAE")
 
 async def send_premium_example(update, context):
     chat_id = update.effective_chat.id
