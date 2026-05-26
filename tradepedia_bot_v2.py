@@ -1944,7 +1944,7 @@ def schedule_free_channel_posts(context: ContextTypes.DEFAULT_TYPE) -> None:
     # Monday-Friday at 10:45 AM UAE
     context.job_queue.run_daily(
         check_and_post_free_channel_update,
-        time=time(hour=10, minute=45, tzinfo=dubai),
+        time=time(hour=11, minute=45, tzinfo=dubai),
         days=(0, 1, 2, 3, 4),
         name="free_channel_morning",
     )
