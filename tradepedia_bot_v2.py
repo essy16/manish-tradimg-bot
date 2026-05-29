@@ -157,6 +157,8 @@ def schedule_premium_noon_followups(update: Update, context: ContextTypes.DEFAUL
             },
             name=f"premium_followup_{user_id}_{step}",
         )
+
+
 async def send_smart_premium_followup(context: ContextTypes.DEFAULT_TYPE) -> None:
     job = context.job
     chat_id = job.data["chat_id"]
@@ -557,6 +559,8 @@ async def send_intro_video(update, context):
     except Exception:
         logger.exception("Intro video failed")
         await send_plain_text(update, context, "Intro video took too long. Continuing...")
+
+
 TRADEPEDIA_AI_SYSTEM = """
 You are the Tradepedia Telegram funnel assistant.
 
@@ -1941,17 +1945,13 @@ def schedule_free_channel_posts(context: ContextTypes.DEFAULT_TYPE) -> None:
 
     dubai = ZoneInfo("Asia/Dubai")
 
-    # Monday-Friday at 10:45 AM UAE
     context.job_queue.run_daily(
         check_and_post_free_channel_update,
         time=time(hour=10, minute=45, tzinfo=dubai),
-        days=(0, 1, 2, 3, 4),
-        name="free_channel_morning",
+        name="free_channel_1045_uae",
     )
 
-    print("FREE CHANNEL POSTS SCHEDULED MONDAY-FRIDAY AT 10:45 AM UAE")
-
-
+    print("FREE CHANNEL POST SCHEDULED DAILY AT 10:45 AM UAE, WEEKENDS BLOCKED INSIDE POST FUNCTION")
 
 async def send_premium_example(update, context):
     chat_id = update.effective_chat.id
