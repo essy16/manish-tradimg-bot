@@ -1895,13 +1895,26 @@ async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> 
         print("Weekend detected. Post skipped.")
         return
 
+    
     text = (
-        "🔥 <b>VIP Session Reminder</b>\n\n"
-        "I’m starting a trading session in my VIP channel in 15 minutes.\n\n"
-        "Free shows you the signal. VIP shows you the full plan, timing, structure, "
-        "risk management, and updates as the trade develops.\n\n"
-        "If you want the complete Tradepedia experience, use the links below."
-    )
+    "🚀 <b>Unlock Tradepedia Premium Access</b>\n\n"
+    "Premium Access unlocks:\n\n"
+    "• high-quality signals\n"
+    "• advanced market structure analysis\n"
+    "• early access to top trade setups\n"
+    "• full app features\n"
+    "• exclusive tools\n"
+    "• Inner Circle trading community\n\n"
+    "Pricing:\n\n"
+    "• 1 Month — AED 199.99\n"
+    "• 6 Months — AED 999.99\n"
+    "• 12 Months — AED 1,799.99\n\n"
+    "Alternative route:\n\n"
+    "Open XM account + deposit $250\n"
+    "→ unlock 6 months of Premium Access\n\n"
+    "<b>This is not just a signal group.</b>\n\n"
+    "This is a full trading ecosystem."
+)
 
     try:
         await context.bot.send_message(
@@ -1939,19 +1952,29 @@ async def check_and_post_free_channel_update(context: ContextTypes.DEFAULT_TYPE)
     save_channel_post_state(state)
 
 
-def schedule_free_channel_posts(context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not context.job_queue or not FREE_CHANNEL_ID:
+async def post_init(app: Application) -> None:
+    schedule_free_channel_posts(app)
+
+
+def schedule_free_channel_posts(app: Application) -> None:
+    if not app.job_queue:
+        print("JOB QUEUE IS MISSING")
+        return
+
+    if not FREE_CHANNEL_ID:
+        print("FREE_CHANNEL_ID IS MISSING")
         return
 
     dubai = ZoneInfo("Asia/Dubai")
 
-    context.job_queue.run_daily(
+    app.job_queue.run_daily(
         check_and_post_free_channel_update,
         time=time(hour=10, minute=45, tzinfo=dubai),
         name="free_channel_1045_uae",
     )
 
-    print("FREE CHANNEL POST SCHEDULED DAILY AT 10:45 AM UAE, WEEKENDS BLOCKED INSIDE POST FUNCTION")
+    print("FREE CHANNEL POST SCHEDULED DAILY AT 10:45 AM UAE")
+
 
 async def send_premium_example(update, context):
     chat_id = update.effective_chat.id
@@ -2056,7 +2079,6 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_message))
     app.add_error_handler(error_handler)
-    schedule_free_channel_posts(app)
 
     return app
 
