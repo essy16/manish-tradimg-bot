@@ -234,7 +234,10 @@ def app_upgrade_markup() -> InlineKeyboardMarkup:
 ]]
 
     if BROKER_LINK:
-        rows.append([InlineKeyboardButton("📈 XM Route: Unlock 6 Months", callback_data="broker_path")])
+        rows.append([InlineKeyboardButton(
+    "📈 XM Route: Unlock 6 Months",
+    callback_data="xm_route"
+)])
 
     rows.append([InlineKeyboardButton("Talk to us directly", callback_data="human_close")])
     return InlineKeyboardMarkup(rows)
@@ -281,6 +284,38 @@ async def user_has_joined_free_channel(update: Update, context: ContextTypes.DEF
         print("JOIN CHECK ERROR:", e)
         return False
 
+
+async def xm_route_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    text = (
+        "📈 <b>Alternative Premium Access Route</b>\n\n"
+        "Open an XM account using our link, deposit $250,\n"
+        "then chat with us to activate your\n"
+        "<b>6 months free Premium Access</b>."
+    )
+
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "📈 Open XM Account",
+                url=BROKER_LINK
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "Back to Premium Access",
+                callback_data="premium_offer"
+            )
+        ]
+    ]
+
+    await query.edit_message_text(
+        text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
 async def send_sequence(
     update: Update,
@@ -2066,7 +2101,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 def build_app() -> Application:
-    app = Application.builder().token(BOT_TOKEN).build()
+    app = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
 
     
 
@@ -2076,6 +2111,12 @@ def build_app() -> Application:
     app.add_handler(CommandHandler("status", status_command))
     app.add_handler(CommandHandler("checkjoin", check_join_command))
     app.add_handler(CommandHandler("testchannel", test_channel_command))
+    app.add_handler(
+    CallbackQueryHandler(
+        xm_route_callback,
+        pattern="^xm_route$"
+    )
+)
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_message))
     app.add_error_handler(error_handler)
