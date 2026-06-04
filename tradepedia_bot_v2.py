@@ -1265,13 +1265,14 @@ async def auto_check_join_status(context: ContextTypes.DEFAULT_TYPE) -> None:
                 chat_id=chat_id,
                 text=(
                     "✅ I can see you’ve joined the free channel.\n\n"
-                    "Now watch the next few signals closely. Free helps you observe, "
-                    "but the full structure is inside Premium."
-                ),
+                    "Great — start by watching how the signals are structured, how risk is explained, "
+                    "and how setups are managed over time.\n\n"
+                    "Let’s continue with a short trading lesson first."
+                )
                 parse_mode=ParseMode.HTML,
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
-                    [InlineKeyboardButton("📈 XM Route: 6 Months Free", callback_data="broker_path")]
+                    [InlineKeyboardButton("📚 Continue Learning", callback_data="next_education")],
+                    [InlineKeyboardButton("📊 View Free Signal", callback_data="next_results")]
                 ])
             )
 
