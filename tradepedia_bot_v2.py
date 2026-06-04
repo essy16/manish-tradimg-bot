@@ -1264,7 +1264,7 @@ async def auto_check_join_status(context: ContextTypes.DEFAULT_TYPE) -> None:
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=(
-                    "✅ I can see you’ve joined the free channel.\n\n"
+                    "✅ I can see you’ve joined the free channel.\n\n,"
                     "Great — start by watching how the signals are structured, how risk is explained, "
                     "and how setups are managed over time.\n\n"
                     "Let’s continue with a short trading lesson first."
