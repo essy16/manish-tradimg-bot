@@ -1268,7 +1268,7 @@ async def auto_check_join_status(context: ContextTypes.DEFAULT_TYPE) -> None:
                     "Great — start by watching how the signals are structured, how risk is explained, "
                     "and how setups are managed over time.\n\n"
                     "Let’s continue with a short trading lesson first."
-                )
+                ),
                 parse_mode=ParseMode.HTML,
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("📚 Continue Learning", callback_data="next_education")],
