@@ -403,60 +403,37 @@ async def send_testimonials(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             )
 
 
-async def send_performance_proof(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    messages = [
-    {
-        "text": "👋 Welcome to Tradepedia.",
-        "delay": 2,
-    },
-    {
-        "text": (
-            "📚 Trading Lesson #1\n\n"
-            "Most traders fail because they focus on profits first and risk second."
-        ),
-        "delay": 3,
-    },
-    {
-        "text": (
-            "📚 Trading Lesson #2\n\n"
-            "No single trade should matter. Consistency comes from process, not predictions."
-        ),
-        "delay": 3,
-    },
-    {
-        "text": (
-            "📊 Today's Market Insight\n\n"
-            "Gold remains under bearish pressure while higher timeframes show conflicting structure."
-        ),
-        "delay": 3,
-    },
-    {
-        "text": (
-            "🎯 Sample Free Signal\n\n"
-            "Asset: GOLD\n"
-            "Bias: Bearish\n"
-            "Risk: 0.5%\n"
-            "Focus on structure, not prediction."
-        ),
-        "delay": 3,
-    },
-    {
-        "text": (
-            "📚 Final Lesson\n\n"
-            "Professional traders focus on risk management, execution and consistency."
-        ),
-        "delay": 3,
-    },
-    {
-        "text": (
-            "✅ Want to continue receiving free analysis, signals and education?"
-        ),
-        "delay": 2,
-        "reply_markup": free_join_markup(),
-    },
-]
-    
-    await send_sequence(update, context, messages)
+async def send_performance_proof(update, context):
+
+    await send_sequence(update, context, [
+        {
+            "text": (
+                "Most traders lose money.\n\n"
+                "Not because they're lazy.\n\n"
+                "Not because they're new.\n\n"
+                "But because they've been burned by bad timing and low-quality signals."
+            ),
+            "delay": 2,
+        },
+        {
+            "text": (
+                "That's exactly why Tradepedia exists.\n\n"
+                "To help traders focus on structure, timing, risk management and consistency."
+            ),
+            "delay": 2,
+        },
+        {
+            "text": (
+                "Before anything else...\n\n"
+                "Look at actual results."
+            ),
+            "delay": 2,
+            "reply_markup": InlineKeyboardMarkup([
+                [InlineKeyboardButton("📊 Show Results", callback_data="next_results")]
+            ])
+        }
+    ])
+
 
 
 def build_free_vs_premium_text() -> str:
@@ -1271,8 +1248,8 @@ async def auto_check_join_status(context: ContextTypes.DEFAULT_TYPE) -> None:
                 ),
                 parse_mode=ParseMode.HTML,
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("📚 Continue Learning", callback_data="next_education")],
-                    [InlineKeyboardButton("📊 View Free Signal", callback_data="next_results")]
+                    [InlineKeyboardButton("📊 View Results", callback_data="next_results")],
+                    [InlineKeyboardButton("💬 Testimonials", callback_data="next_testimonials")]
                 ])
             )
 
