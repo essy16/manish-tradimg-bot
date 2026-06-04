@@ -1536,6 +1536,45 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             ])
             return
 
+
+
+        if data == "continue_education":
+            await send_sequence(
+                update,
+                context,
+                [
+                    {
+                        "text": (
+                            "📊 Example Signal\n\n"
+                            "Asset: GOLD\n"
+                            "Bias: Bearish\n"
+                            "Risk: 0.5%\n\n"
+                            "Focus on structure, not prediction."
+                        ),
+                        "delay": 2,
+                    },
+                    {
+                        "text": (
+                            "The difference is not finding trades.\n\n"
+                            "The difference is knowing which trades to avoid."
+                        ),
+                        "delay": 2,
+                    },
+                    {
+                        "text": (
+                            "Want to receive:\n\n"
+                            "✅ Free Signals\n"
+                            "✅ Market Analysis\n"
+                            "✅ Educational Updates"
+                        ),
+                        "delay": 2,
+                        "reply_markup": free_join_markup(),
+                    },
+                ],
+            )
+            return
+
+
         if data == "exp_beginner":
             state["experience"] = "beginner"
             state["step"] = "loss_question"
