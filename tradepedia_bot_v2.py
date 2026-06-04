@@ -405,47 +405,57 @@ async def send_testimonials(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def send_performance_proof(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     messages = [
-        {
-            "text": "Before trusting anyone in trading, first verify they actually trade.",
-            "delay": 2,
-        },
-        {
-            "text": "And more importantly...",
-            "delay": 2,
-        },
-        {
-            "text": "<b>verify consistency over time.</b>",
-            "delay": 2,
-        },
-        {
-            "text": (
-                "📊 <b>Avramis Despotis Personal Account performance :</b>\n\n"
-                "• 2023 Profit → $608,000+\n"
-                "• 2024 Profit → $1.46M+\n"
-                "• 2025 Profit → $1.18M+\n"
-                "• 2026 YTD Profit → $929,000+"
-            ),
-            "delay": 2,
-        },
-        {
-            "text": (
-                "This proves:\n\n"
-                "• long-term profitability\n"
-                "• real trading activity\n"
-                "• professional scale\n"
-                "• consistency, not luck"
-            ),
-            "delay": 2,
-        },
-        {
-            "text": "Anyone can show one lucky trade.\n\n<b>Very few can show years of consistency.</b>",
-            "delay": 2,
-            "reply_markup": InlineKeyboardMarkup([
-                [InlineKeyboardButton("Show me recent live results", callback_data="next_results")]
-            ]),
-        },
-    ]
-
+    {
+        "text": "👋 Welcome to Tradepedia.",
+        "delay": 2,
+    },
+    {
+        "text": (
+            "📚 Trading Lesson #1\n\n"
+            "Most traders fail because they focus on profits first and risk second."
+        ),
+        "delay": 3,
+    },
+    {
+        "text": (
+            "📚 Trading Lesson #2\n\n"
+            "No single trade should matter. Consistency comes from process, not predictions."
+        ),
+        "delay": 3,
+    },
+    {
+        "text": (
+            "📊 Today's Market Insight\n\n"
+            "Gold remains under bearish pressure while higher timeframes show conflicting structure."
+        ),
+        "delay": 3,
+    },
+    {
+        "text": (
+            "🎯 Sample Free Signal\n\n"
+            "Asset: GOLD\n"
+            "Bias: Bearish\n"
+            "Risk: 0.5%\n"
+            "Focus on structure, not prediction."
+        ),
+        "delay": 3,
+    },
+    {
+        "text": (
+            "📚 Final Lesson\n\n"
+            "Professional traders focus on risk management, execution and consistency."
+        ),
+        "delay": 3,
+    },
+    {
+        "text": (
+            "✅ Want to continue receiving free analysis, signals and education?"
+        ),
+        "delay": 2,
+        "reply_markup": free_join_markup(),
+    },
+]
+    
     await send_sequence(update, context, messages)
 
 
