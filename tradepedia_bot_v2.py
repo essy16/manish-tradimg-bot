@@ -1264,10 +1264,10 @@ async def auto_check_join_status(context: ContextTypes.DEFAULT_TYPE) -> None:
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=(
-                    "✅ I can see you’ve joined the free channel.\n\n,"
+                    "✅ I can see you've joined the free channel.\n\n"
                     "Great — start by watching how the signals are structured, how risk is explained, "
                     "and how setups are managed over time.\n\n"
-                    "Let’s continue with a short trading lesson first."
+                    "Let's continue with a short trading lesson first."
                 ),
                 parse_mode=ParseMode.HTML,
                 reply_markup=InlineKeyboardMarkup([
@@ -1507,6 +1507,33 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     try:
         if data == "restart":
             await start(update, context)
+            return
+        
+        if data == "next_education":
+            state["step"] = "education"
+
+            await send_sequence(update, context, [
+                {
+                    "text": (
+                        "📚 <b>Trading Lesson</b>\n\n"
+                        "Most traders fail because they focus on finding the next winning trade "
+                        "before learning how to survive the losing ones.\n\n"
+                        "Successful traders understand that protecting capital comes first."
+                    ),
+                    "delay": 1,
+                },
+                {
+                    "text": (
+                        "The goal is not to win every trade.\n\n"
+                        "The goal is to stay in the game long enough for your edge to work."
+                    ),
+                    "delay": 2,
+                    "reply_markup": InlineKeyboardMarkup([
+                        [InlineKeyboardButton("📊 View Free Signal", callback_data="next_results")],
+                        [InlineKeyboardButton("✅ Join Free Channel", url=FREE_CHANNEL_LINK)],
+                    ]),
+                },
+            ])
             return
 
         if data == "exp_beginner":
