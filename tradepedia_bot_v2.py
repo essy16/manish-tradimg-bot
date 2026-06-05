@@ -1986,23 +1986,11 @@ async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> 
 
     
     text = (
-    "🚀 <b>Unlock Tradepedia Premium Access</b>\n\n"
-    "Premium Access unlocks:\n\n"
-    "• high-quality signals\n"
-    "• advanced market structure analysis\n"
-    "• early access to top trade setups\n"
-    "• full app features\n"
-    "• exclusive tools\n"
-    "• Inner Circle trading community\n\n"
-    "Pricing:\n\n"
-    "• 1 Month — AED 199.99\n"
-    "• 6 Months — AED 999.99\n"
-    "• 12 Months — AED 1,799.99\n\n"
-    "Alternative route:\n\n"
-    "Open XM account + deposit $250\n"
-    "→ unlock 6 months of Premium Access\n\n"
-    "<b>This is not just a signal group.</b>\n\n"
-    "This is a full trading ecosystem."
+    "🔥 <b>VIP Session Reminder</b>\n\n"
+    "I’m starting a trading session in my VIP channel in 15 minutes.\n\n"
+    "Free shows you the signal. VIP shows you the full plan, timing, "
+    "structure, risk management, and updates as the trade develops.\n\n"
+    "If you want the complete Tradepedia experience, use the links below."
 )
 
     try:
