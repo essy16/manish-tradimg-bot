@@ -61,17 +61,17 @@ DEFAULT_CONTENT = {
     "recent_results": [
         {
             "image": "images/proof1.jpeg",
-            "caption": "📊Avramis Despotis Personal Account performance :"
+            "caption": " Avramis Despotis Personal Account performance :"
         },
         {
             "image": "images/proof2.jpeg",
-            "caption": "📈 Recent live account results showing current execution and structured trade management."
+            "caption": " Recent live account results showing current execution and structured trade management."
         }
     ],
     "testimonials": [
         {
             "image": "images/proof3.jpeg",
-            "caption": "🧾 Real client feedback showing confidence built through structured trading."
+            "caption": " Real client feedback showing confidence built through structured trading."
         }
     ],
     "onboarding_days": {
@@ -174,8 +174,8 @@ async def send_smart_premium_followup(context: ContextTypes.DEFAULT_TYPE) -> Non
         ])
 
         buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
-            [InlineKeyboardButton("📈 XM Route: 6 Months Free", callback_data="broker_path")]
+            [InlineKeyboardButton(" Unlock Premium Access", callback_data="premium_offer")],
+            [InlineKeyboardButton(" XM Route: 6 Months Free", callback_data="broker_path")]
         ])
 
     elif temperature == "cold":
@@ -187,7 +187,7 @@ async def send_smart_premium_followup(context: ContextTypes.DEFAULT_TYPE) -> Non
         ])
 
         buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+            [InlineKeyboardButton(" Join Free Signals", url=FREE_CHANNEL_LINK)],
             [InlineKeyboardButton("Show Results", callback_data="next_results")]
         ])
 
@@ -200,8 +200,8 @@ async def send_smart_premium_followup(context: ContextTypes.DEFAULT_TYPE) -> Non
         ])
 
         buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
-            [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)]
+            [InlineKeyboardButton("Unlock Premium Access", callback_data="premium_offer")],
+            [InlineKeyboardButton("Join Free Signals", url=FREE_CHANNEL_LINK)]
         ])
 
     await context.bot.send_message(
@@ -228,9 +228,9 @@ def free_join_markup() -> InlineKeyboardMarkup:
 
 def app_upgrade_markup() -> InlineKeyboardMarkup:
     rows = [[
-        InlineKeyboardButton("🌐 Tradepedia WebApp", url=APP_LINK),
-        InlineKeyboardButton("📱 iOS App", url=IOS_APP),
-        InlineKeyboardButton("🤖 Android", url=ANDROID_APP),
+        InlineKeyboardButton(" Tradepedia WebApp", url=APP_LINK),
+        InlineKeyboardButton(" iOS App", url=IOS_APP),
+        InlineKeyboardButton(" Android", url=ANDROID_APP),
 ]]
 
     if BROKER_LINK:
@@ -368,8 +368,8 @@ async def send_results(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 "📊 View Live Results",
                 web_app=WebAppInfo(url="https://social.tp-redirect.com/s/Bl1qKplE")
             )],
-            [InlineKeyboardButton("💬 Show Real Testimonials", callback_data="next_testimonials")],
-            [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
+            [InlineKeyboardButton(" Show Real Testimonials", callback_data="next_testimonials")],
+            [InlineKeyboardButton(" Join Free Signals", url=FREE_CHANNEL_LINK)],
         ])
     )
 
@@ -833,14 +833,14 @@ def get_buttons_for_message(user_text: str, memory: dict[str, Any]) -> InlineKey
 
     if emotion in ["pricing", "app"] or score >= 7:
         return InlineKeyboardMarkup([
-            [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
-            [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)]  # ✅ FIXED
+            [InlineKeyboardButton(" Unlock Premium Access", callback_data="premium_offer")],
+            [InlineKeyboardButton(" Join Free Signals", url=FREE_CHANNEL_LINK)]  # ✅ FIXED
         ])
 
     return InlineKeyboardMarkup([
-    [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
-    [InlineKeyboardButton("✅ I Joined", callback_data="after_free_join")],
-    [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")]
+    [InlineKeyboardButton("Join Free Signals", url=FREE_CHANNEL_LINK)],
+    [InlineKeyboardButton(" I Joined", callback_data="after_free_join")],
+    [InlineKeyboardButton(" Unlock Premium Access", callback_data="premium_offer")]
 ])
 
 
@@ -859,8 +859,8 @@ async def send_video_testimonials(update, context, index: int = 0):
             context,
             "That’s the last testimonial for now.\n\nNext step: start free or unlock Premium.",
             InlineKeyboardMarkup([
-                [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
-                [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+                [InlineKeyboardButton(" Join Free Signals", url=FREE_CHANNEL_LINK)],
+                [InlineKeyboardButton(" Unlock Premium Access", callback_data="premium_offer")],
             ])
         )
         return
@@ -891,8 +891,8 @@ async def send_video_testimonials(update, context, index: int = 0):
             InlineKeyboardButton("View More Testimonials", callback_data=f"more_testimonials:{index + 1}")
         ])
 
-    buttons.append([InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)])
-    buttons.append([InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")])
+    buttons.append([InlineKeyboardButton("Join Free Signals", url=FREE_CHANNEL_LINK)])
+    buttons.append([InlineKeyboardButton(" Unlock Premium Access", callback_data="premium_offer")])
 
     await send_plain_text(
         update,
@@ -977,9 +977,9 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             context,
             "If you want to verify it properly, join the free channel first and watch the structure live.",
             InlineKeyboardMarkup([
-                [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
-                [InlineKeyboardButton("✅ I Joined", callback_data="after_free_join")],
-                [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+                [InlineKeyboardButton(" Join Free Signals", url=FREE_CHANNEL_LINK)],
+                [InlineKeyboardButton(" I Joined", callback_data="after_free_join")],
+                [InlineKeyboardButton(" Unlock Premium Access", callback_data="premium_offer")],
             ])
         )
         return
@@ -1076,9 +1076,9 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             context,
             "Start free first. If the structure makes sense, Premium becomes the next step.",
             InlineKeyboardMarkup([
-                [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
-                [InlineKeyboardButton("✅ I Joined", callback_data="after_free_join")],
-                [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+                [InlineKeyboardButton(" Join Free Signals", url=FREE_CHANNEL_LINK)],
+                [InlineKeyboardButton(" I Joined", callback_data="after_free_join")],
+                [InlineKeyboardButton(" Unlock Premium Access", callback_data="premium_offer")],
             ])
         )
         return
@@ -1094,8 +1094,8 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 "Tradepedia is built around his structured approach to trading — timing, execution, and consistency."
             ),
             InlineKeyboardMarkup([
-                [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
-                [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+                [InlineKeyboardButton(" Join Free Signals", url=FREE_CHANNEL_LINK)],
+                [InlineKeyboardButton(" Unlock Premium Access", callback_data="premium_offer")],
             ])
         )
         return
@@ -1182,8 +1182,8 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             context,
             "I’m here — ask me anything about Tradepedia, results, testimonials, or Premium Access.",
             InlineKeyboardMarkup([
-                [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
-                [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
+                [InlineKeyboardButton(" Join Free Signals", url=FREE_CHANNEL_LINK)],
+                [InlineKeyboardButton(" Unlock Premium Access", callback_data="premium_offer")],
             ])
         )
 
@@ -1241,15 +1241,15 @@ async def auto_check_join_status(context: ContextTypes.DEFAULT_TYPE) -> None:
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=(
-                    "✅ I can see you've joined the free channel.\n\n"
+                    " I can see you've joined the free channel.\n\n"
                     "Great — start by watching how the signals are structured, how risk is explained, "
                     "and how setups are managed over time.\n\n"
                     "Let's continue with a short trading lesson first."
                 ),
                 parse_mode=ParseMode.HTML,
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("📊 View Results", callback_data="next_results")],
-                    [InlineKeyboardButton("💬 Testimonials", callback_data="next_testimonials")]
+                    [InlineKeyboardButton(" View Results", callback_data="next_results")],
+                    [InlineKeyboardButton(" Testimonials", callback_data="next_testimonials")]
                 ])
             )
 
@@ -1338,8 +1338,8 @@ async def send_free_user_premium_reminder(context: ContextTypes.DEFAULT_TYPE) ->
         text=f"☀️ <b>Tradepedia Reminder — Day {day}</b>\n\n{text}",
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
-            [InlineKeyboardButton("📈 XM Route: 6 Months Free", callback_data="broker_path")]
+            [InlineKeyboardButton(" Unlock Premium Access", callback_data="premium_offer")],
+            [InlineKeyboardButton(" XM Route: 6 Months Free", callback_data="broker_path")]
         ])
     )
 
@@ -1430,8 +1430,8 @@ async def send_pre_join_elite_push(context: ContextTypes.DEFAULT_TYPE):
     if joined:
         text = random.choice(joined_messages.get(step, joined_messages[4]))
         buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
-            [InlineKeyboardButton("📈 XM Route: 6 Months Free", callback_data="broker_path")]
+            [InlineKeyboardButton(" Unlock Premium Access", callback_data="premium_offer")],
+            [InlineKeyboardButton(" XM Route: 6 Months Free", callback_data="broker_path")]
         ])
     else:
         text = random.choice(not_joined_messages.get(step, not_joined_messages[4]))
@@ -1690,9 +1690,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     "text": "Or unlock Premium Access if you already want the full structure, app tools, and Inner Circle.",
                     "delay": 3,
                     "reply_markup": InlineKeyboardMarkup([
-                        [InlineKeyboardButton("✅ Join Free Signals", url=FREE_CHANNEL_LINK)],
-                        [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
-                        [InlineKeyboardButton("📈 XM Route: 6 Months Free", callback_data="broker_path")],
+                        [InlineKeyboardButton(" Join Free Signals", url=FREE_CHANNEL_LINK)],
+                        [InlineKeyboardButton(" Unlock Premium Access", callback_data="premium_offer")],
+                        [InlineKeyboardButton(" XM Route: 6 Months Free", callback_data="broker_path")],
                     ]),
                 },
             ])
@@ -1734,8 +1734,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                             "Now watch the next few signals closely. Free helps you observe, but the complete structure, earlier entries, trade updates, and full breakdown are inside the Tradepedia WebApp."
                         ),
                         InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🌐 Tradepedia WebApp", url=APP_LINK)],
-                            [InlineKeyboardButton("📈 XM Route: 6 Months Free", callback_data="broker_path")]
+                            [InlineKeyboardButton(" Tradepedia WebApp", url=APP_LINK)],
+                            [InlineKeyboardButton(" XM Route: 6 Months Free", callback_data="broker_path")]
                         ])
                     )
             return
@@ -1928,8 +1928,8 @@ async def send_conversion_push(context: ContextTypes.DEFAULT_TYPE) -> None:
             text=message,
             parse_mode=ParseMode.HTML,
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")],
-                [InlineKeyboardButton("📈 XM Route: 6 Months Free", callback_data="broker_path")]
+                [InlineKeyboardButton(" Unlock Premium Access", callback_data="premium_offer")],
+                [InlineKeyboardButton(" XM Route: 6 Months Free", callback_data="broker_path")]
             ])
         )
 
@@ -1940,22 +1940,22 @@ async def send_conversion_push(context: ContextTypes.DEFAULT_TYPE) -> None:
             text=text_hint or "Premium gives you deeper structure, earlier setups, and trade updates when you’re ready.",
             parse_mode=ParseMode.HTML,
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🚀 Unlock Premium Access", callback_data="premium_offer")]
+                [InlineKeyboardButton(" Unlock Premium Access", callback_data="premium_offer")]
             ])
         )
 
 
 def channel_cta_markup() -> InlineKeyboardMarkup:
-    rows = [[InlineKeyboardButton("🌐 Tradepedia WebApp", url=APP_LINK)]]
+    rows = [[InlineKeyboardButton(" Tradepedia WebApp", url=APP_LINK)]]
 
     if IOS_APP:
-        rows.append([InlineKeyboardButton("📱 iOS App", url=IOS_APP)])
+        rows.append([InlineKeyboardButton(" iOS App", url=IOS_APP)])
 
     if ANDROID_APP:
         rows.append([InlineKeyboardButton("🤖 Google Play / Android", url=ANDROID_APP)])
 
     if BROKER_LINK:
-        rows.append([InlineKeyboardButton("📈 XM Route: 6 Months Free", url=BROKER_LINK)])
+        rows.append([InlineKeyboardButton(" XM Route: 6 Months Free", url=BROKER_LINK)])
 
     return InlineKeyboardMarkup(rows)
 
