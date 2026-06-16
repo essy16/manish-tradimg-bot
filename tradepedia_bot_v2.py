@@ -47,12 +47,40 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini").strip()
 FREE_CHANNEL_ID = os.getenv("FREE_CHANNEL_ID", "").strip()
 openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
+
 if not BOT_TOKEN:
     raise RuntimeError("Missing BOT_TOKEN in .env")
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 USER_STATE_FILE = DATA_DIR / "user_state.json"
 CHANNEL_POST_STATE_FILE = DATA_DIR / "channel_post_state.json"
+USER_REGISTRY_FILE = DATA_DIR / "user_registry.json"
+
+
+def load_user_registry() -> dict[str, Any]:
+    return load_json(USER_REGISTRY_FILE, {})
+
+
+def save_user_registry(registry: dict[str, Any]) -> None:
+    save_json(USER_REGISTRY_FILE, registry)
+
+
+def register_user_for_daily_messages(update: Update) -> None:
+    user = update.effective_user
+    chat = update.effective_chat
+
+    if not user or not chat:
+        return
+
+    registry = load_user_registry()
+    registry[str(user.id)] = {
+        "chat_id": chat.id,
+        "user_id": user.id,
+        "first_name": user.first_name,
+        "registered_at": datetime.now(ZoneInfo("Asia/Dubai")).isoformat(),
+        "active": True,
+    }
+    save_user_registry(registry)
 
 
 DEFAULT_CONTENT = {
@@ -464,7 +492,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     state.clear()
     state["step"] = "entry"
 
-
+    register_user_for_daily_messages(update)
     await send_intro_video(update, context)
 
     # schedule_pre_join_elite_funnel(update, context)
@@ -624,6 +652,31 @@ Brand facts:
 If unrelated:
 Politely say you can only help with Tradepedia, signals, Premium Access, app registration, or XM access.
 """
+
+
+
+DAILY_MARKET_ANALYSIS = [
+    {
+        "image": "images/market-analysis-1.jpg",
+        "caption": "Market Analysis\n\nThe trade has progressed as anticipated, reaching another planned target level.\n\nProper trade management allows profits to be secured while reducing exposure to market uncertainty."    },
+    {
+        "image": "images/market-analysis-2.jpg",
+        "caption": "Market Analysis\n\nETHUSD has successfully reached the first target level, allowing part of the position to be secured while reducing overall risk.\n\nWith the stop loss now adjusted to protect profits, the focus shifts to monitoring price action and managing the position according to plan."    },
+    {
+        "image": "images/market-analysis-3.jpg",
+        "caption": "Market Analysis\n\nUS100Cash has successfully reached the first projected target, allowing partial profits to be secured while reducing overall exposure.\n\nWith risk now managed and the position protected, attention shifts to monitoring price action as the market approaches the next key objective."    },
+    {
+        "image": "images/market-analysis-4.jpg",
+        "caption": "Market Analysis\n\nUSDJPY has successfully reached the first target level, confirming the strength of the current bullish structure.\n\nWith partial profits secured and risk effectively managed, attention now turns to how price behaves as it approaches the next key resistance area."  },
+    {
+        "image": "images/market-analysis-5.jpg",
+        "caption": "Market Analysis\n\nPrice has successfully advanced through the projected target zones, validating the original analysis and trade structure.\n\nTrade management remains a critical component of consistency, ensuring profits are secured as objectives are achieved."}
+
+]
+
+
+
+
 
 async def send_pre_join_push(context: ContextTypes.DEFAULT_TYPE):
     job = context.job
@@ -823,6 +876,50 @@ def get_followup_for_message(user_text: str, memory: dict[str, Any]) -> str:
         "Free first. Once the structure makes sense, Premium becomes the next step."
     ])
 
+
+async def send_daily_private_market_analysis(context: ContextTypes.DEFAULT_TYPE) -> None:
+    registry = load_user_registry()
+
+    if not DAILY_MARKET_ANALYSIS:
+        return
+
+    dubai = ZoneInfo("Asia/Dubai")
+    today_index = datetime.now(dubai).toordinal() % len(DAILY_MARKET_ANALYSIS)
+    item = DAILY_MARKET_ANALYSIS[today_index]
+
+    image_path = Path(item["image"])
+    caption = item["caption"]
+
+    for user_id, user in registry.items():
+        if not user.get("active", True):
+            continue
+
+        chat_id = user["chat_id"]
+
+        try:
+            if image_path.exists():
+                with image_path.open("rb") as photo:
+                    await context.bot.send_photo(
+                        chat_id=chat_id,
+                        photo=photo,
+                        caption=caption,
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("Unlock Premium Access", callback_data="premium_offer")],
+                            [InlineKeyboardButton("XM Route: 6 Months Free", callback_data="broker_path")]
+                        ])
+                    )
+            else:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=caption,
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("Unlock Premium Access", callback_data="premium_offer")],
+                        [InlineKeyboardButton("XM Route: 6 Months Free", callback_data="broker_path")]
+                    ])
+                )
+
+        except Exception:
+            logger.exception(f"Failed to send market analysis to user {user_id}")
 
 def get_buttons_for_message(user_text: str, memory: dict[str, Any]) -> InlineKeyboardMarkup:
     emotion = detect_emotion(user_text)
@@ -2043,6 +2140,12 @@ def schedule_free_channel_posts(app: Application) -> None:
         return
 
     dubai = ZoneInfo("Asia/Dubai")
+
+    app.job_queue.run_daily(
+    send_daily_private_market_analysis,
+    time=time(hour=9, minute=45, tzinfo=dubai),
+    name="daily_private_market_analysis_0945_uae",
+    )
 
     app.job_queue.run_daily(
         check_and_post_free_channel_update,
