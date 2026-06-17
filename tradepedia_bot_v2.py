@@ -713,6 +713,53 @@ async def send_pre_join_push(context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def send_daily_inactivity_followup(context: ContextTypes.DEFAULT_TYPE) -> None:
+    registry = load_user_registry()
+
+    if not DAILY_MARKET_ANALYSIS:
+        return
+
+    dubai = ZoneInfo("Asia/Dubai")
+    today_index = datetime.now(dubai).toordinal() % len(DAILY_MARKET_ANALYSIS)
+    item = DAILY_MARKET_ANALYSIS[today_index]
+
+    image_path = Path(item["image"])
+    caption = item["caption"]
+
+    for user_id, user in registry.items():
+        if not user.get("active", True):
+            continue
+
+        chat_id = user["chat_id"]
+
+        try:
+            if image_path.exists():
+                with image_path.open("rb") as photo:
+                    await context.bot.send_photo(
+                        chat_id=chat_id,
+                        photo=photo,
+                        caption=caption,
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("View Results", callback_data="next_results")],
+                            [InlineKeyboardButton("Unlock Premium Access", callback_data="premium_offer")]
+                        ])
+                    )
+            else:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=caption,
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("View Results", callback_data="next_results")],
+                        [InlineKeyboardButton("Unlock Premium Access", callback_data="premium_offer")]
+                    ])
+                )
+
+        except Exception:
+            logger.exception(
+                f"Failed to send inactivity follow-up to user {user_id}"
+            )
+            
+
 def schedule_pre_join_push(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if not context.job_queue:
@@ -1300,6 +1347,11 @@ def schedule_auto_join_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
+    job_name = f"auto_join_check_{user_id}"
+
+    # remove existing duplicate jobs first
+    for job in context.job_queue.get_jobs_by_name(job_name):
+        job.schedule_removal()
 
     context.job_queue.run_repeating(
         auto_check_join_status,
@@ -1310,8 +1362,9 @@ def schedule_auto_join_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "user_id": user_id,
             "checks": 0,
         },
-        name=f"auto_join_check_{user_id}",
+        name=job_name,
     )
+
 
 
 async def auto_check_join_status(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1338,15 +1391,15 @@ async def auto_check_join_status(context: ContextTypes.DEFAULT_TYPE) -> None:
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=(
-                    " I can see you've joined the free channel.\n\n"
-                    "Great — start by watching how the signals are structured, how risk is explained, "
-                    "and how setups are managed over time.\n\n"
-                    "Let's continue with a short trading lesson first."
+                    "I can see you’ve joined the free channel.\n\n"
+                    "Good — that’s the right place to start.\n\n"
+                    "The free channel lets you observe signals and market updates, but Premium gives you the full structure, earlier entries, trade management, and deeper analysis.\n\n"
+                    "When you’re ready, you can unlock the complete Tradepedia experience below."
                 ),
                 parse_mode=ParseMode.HTML,
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton(" View Results", callback_data="next_results")],
-                    [InlineKeyboardButton(" Testimonials", callback_data="next_testimonials")]
+                    [InlineKeyboardButton("Unlock Premium Access", callback_data="premium_offer")],
+                    [InlineKeyboardButton("XM Route: 6 Months Free", callback_data="broker_path")]
                 ])
             )
 
@@ -2146,6 +2199,11 @@ def schedule_free_channel_posts(app: Application) -> None:
     time=time(hour=9, minute=45, tzinfo=dubai),
     name="daily_private_market_analysis_0945_uae",
     )
+    app.job_queue.run_daily(
+    send_daily_inactivity_followup,
+    time=time(hour=18, minute=0, tzinfo=dubai),
+    name="daily_inactivity_followup_1800_uae",
+)
 
     app.job_queue.run_daily(
         check_and_post_free_channel_update,
