@@ -124,6 +124,51 @@ def load_json(path: Path, default: Any) -> Any:
         return default
 
 
+async def send_daily_bot_reminder(context: ContextTypes.DEFAULT_TYPE) -> None:
+    registry = load_user_registry()
+
+    if not DAILY_MARKET_ANALYSIS:
+        return
+
+    dubai = ZoneInfo("Asia/Dubai")
+    today_index = datetime.now(dubai).toordinal() % len(DAILY_MARKET_ANALYSIS)
+    item = DAILY_MARKET_ANALYSIS[today_index]
+
+    image_path = Path(item["image"])
+    caption = item["caption"]
+
+    for user_id, user in registry.items():
+        if not user.get("active", True):
+            continue
+
+        chat_id = user["chat_id"]
+
+        try:
+            if image_path.exists():
+                with image_path.open("rb") as photo:
+                    await context.bot.send_photo(
+                        chat_id=chat_id,
+                        photo=photo,
+                        caption=caption,
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("View Results", callback_data="next_results")],
+                            [InlineKeyboardButton("Unlock Premium Access", callback_data="premium_offer")]
+                        ])
+                    )
+            else:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=caption,
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("View Results", callback_data="next_results")],
+                        [InlineKeyboardButton("Unlock Premium Access", callback_data="premium_offer")]
+                    ])
+                )
+
+        except Exception:
+            logger.exception(f"Failed to send daily bot reminder to user {user_id}")
+
+
 def save_json(path: Path, payload: Any) -> None:
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
 
@@ -159,85 +204,6 @@ def get_user_temperature(context: ContextTypes.DEFAULT_TYPE) -> str:
 
     return "warm"
 
-
-def schedule_premium_noon_followups(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not context.job_queue:
-        return
-
-    chat_id = update.effective_chat.id
-    user_id = update.effective_user.id
-    temperature = get_user_temperature(context)
-
-    intervals = [
-        (6 * 60 * 60, 1),    # 6 hours
-        (12 * 60 * 60, 2),   # 12 hours
-        (24 * 60 * 60, 3),   # 24 hours
-    ]
-
-    for seconds, step in intervals:
-        context.job_queue.run_once(
-            send_smart_premium_followup,
-            when=seconds,
-            data={
-                "chat_id": chat_id,
-                "temperature": temperature,
-                "day": step,
-            },
-            name=f"premium_followup_{user_id}_{step}",
-        )
-
-
-async def send_smart_premium_followup(context: ContextTypes.DEFAULT_TYPE) -> None:
-    job = context.job
-    chat_id = job.data["chat_id"]
-    temperature = job.data.get("temperature", "warm")
-    day = job.data.get("day", 1)
-
-    if temperature == "hot":
-        text = random.choice([
-            "VIP members were already positioned before this move.\n\nFree shows what is happening. VIP shows the plan before it happens.",
-            "This setup was explained step-by-step inside VIP.\n\nFree is useful, but VIP gives the full structure.",
-            "Free shows the move.\n\nVIP shows the entry logic, trade management, and updates behind the move.",
-            "This is where structure makes the difference.\n\nVIP is not more noise — it is the complete trading experience.",
-        ])
-
-        buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton(" Unlock Premium Access", callback_data="premium_offer")],
-            [InlineKeyboardButton(" XM Route: 6 Months Free", callback_data="broker_path")]
-        ])
-
-    elif temperature == "cold":
-        text = random.choice([
-            "No pressure to upgrade yet.\n\nStart with the free channel and watch how the setups are handled.",
-            "The free channel is there so you can judge from evidence, not hype.",
-            "Free gives you a useful starting point.\n\nWatch the timing, updates, and structure first.",
-            "You do not need to decide today.\n\nObserve the free signals first, then decide if VIP makes sense.",
-        ])
-
-        buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton(" Join Free Signals", url=FREE_CHANNEL_LINK)],
-            [InlineKeyboardButton("Show Results", callback_data="next_results")]
-        ])
-
-    else:
-        text = random.choice([
-            "Free is useful because it lets you observe.\n\nVIP is where the full breakdown, earlier entries, and trade management happen.",
-            "You’re starting to see the difference.\n\nFree shows direction. VIP shows the complete plan.",
-            "VIP members don’t just receive signals.\n\nThey get structure, context, updates, and the full trading experience.",
-            "The free channel builds trust.\n\nVIP is where the deeper analysis and complete execution plan are shared.",
-        ])
-
-        buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("Unlock Premium Access", callback_data="premium_offer")],
-            [InlineKeyboardButton("Join Free Signals", url=FREE_CHANNEL_LINK)]
-        ])
-
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=f"☀️ <b>Tradepedia Premium Reminder — Day {day}</b>\n\n{text}",
-        parse_mode=ParseMode.HTML,
-        reply_markup=buttons
-    )
 
 def load_user_state_store() -> dict[str, Any]:
     return load_json(USER_STATE_FILE, {})
@@ -658,10 +624,10 @@ Politely say you can only help with Tradepedia, signals, Premium Access, app reg
 DAILY_MARKET_ANALYSIS = [
     {
         "image": "images/market-analysis-1.jpg",
-        "caption": "Market Analysis\n\nThe trade has progressed as anticipated, reaching another planned target level.\n\nProper trade management allows profits to be secured while reducing exposure to market uncertainty."    },
+        "caption": "Market Analysis\n\nMost traders focus heavily on finding the perfect entry, but long-term success is often determined by risk management and trade execution.\n\nConsistent results come from protecting capital, managing positions effectively, and following a structured approach to the market." },
     {
         "image": "images/market-analysis-2.jpg",
-        "caption": "Market Analysis\n\nETHUSD has successfully reached the first target level, allowing part of the position to be secured while reducing overall risk.\n\nWith the stop loss now adjusted to protect profits, the focus shifts to monitoring price action and managing the position according to plan."    },
+        "caption": "Market Analysis\n\nSuccessful trading is built on consistency rather than prediction. Markets change daily, but disciplined processes help traders adapt to different conditions.\n\nThe objective is not to trade more often, but to identify quality opportunities and execute them with patience and structure."},
     {
         "image": "images/market-analysis-3.jpg",
         "caption": "Market Analysis\n\nUS100Cash has successfully reached the first projected target, allowing partial profits to be secured while reducing overall exposure.\n\nWith risk now managed and the position protected, attention shifts to monitoring price action as the market approaches the next key objective."    },
@@ -713,52 +679,47 @@ async def send_pre_join_push(context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def send_daily_inactivity_followup(context: ContextTypes.DEFAULT_TYPE) -> None:
-    registry = load_user_registry()
+async def test_day1_reminder(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
 
-    if not DAILY_MARKET_ANALYSIS:
-        return
-
-    dubai = ZoneInfo("Asia/Dubai")
-    today_index = datetime.now(dubai).toordinal() % len(DAILY_MARKET_ANALYSIS)
-    item = DAILY_MARKET_ANALYSIS[today_index]
+    item = {
+        "image": "images/day1.jpg",
+        "caption": (
+            "Market Analysis\n\n"
+            "Most traders focus heavily on finding the perfect entry, but long-term success is often determined by risk management and trade execution.\n\n"
+            "Consistent results come from protecting capital, managing positions effectively, and following a structured approach to the market."
+        )
+    }
 
     image_path = Path(item["image"])
-    caption = item["caption"]
 
-    for user_id, user in registry.items():
-        if not user.get("active", True):
-            continue
-
-        chat_id = user["chat_id"]
-
-        try:
-            if image_path.exists():
-                with image_path.open("rb") as photo:
-                    await context.bot.send_photo(
-                        chat_id=chat_id,
-                        photo=photo,
-                        caption=caption,
-                        reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("View Results", callback_data="next_results")],
-                            [InlineKeyboardButton("Unlock Premium Access", callback_data="premium_offer")]
-                        ])
-                    )
-            else:
-                await context.bot.send_message(
+    try:
+        if image_path.exists():
+            with image_path.open("rb") as photo:
+                await context.bot.send_photo(
                     chat_id=chat_id,
-                    text=caption,
+                    photo=photo,
+                    caption=item["caption"],
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("View Results", callback_data="next_results")],
                         [InlineKeyboardButton("Unlock Premium Access", callback_data="premium_offer")]
                     ])
                 )
-
-        except Exception:
-            logger.exception(
-                f"Failed to send inactivity follow-up to user {user_id}"
+        else:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=item["caption"],
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("View Results", callback_data="next_results")],
+                    [InlineKeyboardButton("Unlock Premium Access", callback_data="premium_offer")]
+                ])
             )
-            
+
+    except Exception:
+        logger.exception("Failed to send Day 1 test reminder")
+        await update.message.reply_text("Day 1 test failed.")
+
+
 
 def schedule_pre_join_push(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -924,49 +885,11 @@ def get_followup_for_message(user_text: str, memory: dict[str, Any]) -> str:
     ])
 
 
-async def send_daily_private_market_analysis(context: ContextTypes.DEFAULT_TYPE) -> None:
-    registry = load_user_registry()
 
-    if not DAILY_MARKET_ANALYSIS:
-        return
 
-    dubai = ZoneInfo("Asia/Dubai")
-    today_index = datetime.now(dubai).toordinal() % len(DAILY_MARKET_ANALYSIS)
-    item = DAILY_MARKET_ANALYSIS[today_index]
 
-    image_path = Path(item["image"])
-    caption = item["caption"]
 
-    for user_id, user in registry.items():
-        if not user.get("active", True):
-            continue
 
-        chat_id = user["chat_id"]
-
-        try:
-            if image_path.exists():
-                with image_path.open("rb") as photo:
-                    await context.bot.send_photo(
-                        chat_id=chat_id,
-                        photo=photo,
-                        caption=caption,
-                        reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("Unlock Premium Access", callback_data="premium_offer")],
-                            [InlineKeyboardButton("XM Route: 6 Months Free", callback_data="broker_path")]
-                        ])
-                    )
-            else:
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=caption,
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("Unlock Premium Access", callback_data="premium_offer")],
-                        [InlineKeyboardButton("XM Route: 6 Months Free", callback_data="broker_path")]
-                    ])
-                )
-
-        except Exception:
-            logger.exception(f"Failed to send market analysis to user {user_id}")
 
 def get_buttons_for_message(user_text: str, memory: dict[str, Any]) -> InlineKeyboardMarkup:
     emotion = detect_emotion(user_text)
@@ -1403,22 +1326,9 @@ async def auto_check_join_status(context: ContextTypes.DEFAULT_TYPE) -> None:
                 ])
             )
 
-            # schedule premium follow-ups after join
-            for seconds, step in [
-                (6 * 60 * 60, 1),
-                (12 * 60 * 60, 2),
-                (24 * 60 * 60, 3),
-            ]:
-                context.job_queue.run_once(
-                    send_smart_premium_followup,
-                    when=seconds,
-                    data={
-                        "chat_id": chat_id,
-                        "temperature": "warm",
-                        "day": step,
-                    },
-                    name=f"auto_premium_followup_{user_id}_{step}",
-                )
+           
+            
+
 
     except Exception:
         logger.exception("Auto join check failed")
@@ -1765,12 +1675,38 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             state["step"] = "performance_proof"
 
             await send_sequence(update, context, [
-                {"text": "Yeah... that’s exactly why most traders come to us.", "delay": 2},
-                {"text": "Not because they’re new.", "delay": 2},
-                {"text": "But because they’ve already been burned by bad timing and low-quality signals.", "delay": 2},
-                {"text": "So before anything else...", "delay": 2},
-            ])
+                {"text": "Yeah... that's exactly why most traders come to us.", "delay": 2},
+                {"text": "They've tried signals before.", "delay": 2},
+                {"text": "They've seen promises before.", "delay": 2},
+                {"text": "And they've learned to be skeptical.", "delay": 2},
 
+                {"text": "Most traders lose money.", "delay": 2},
+                {"text": "Not because they're lazy.", "delay": 2},
+                {"text": "Not because they're new.", "delay": 2},
+                {"text": "But because they've been burned by bad timing and low-quality signals.", "delay": 2},
+
+                {"text": "That's exactly why Tradepedia exists.", "delay": 2},
+
+                {
+                    "text": (
+                        "To help traders focus on structure, timing, "
+                        "risk management and consistency."
+                    ),
+                    "delay": 2,
+                },
+
+                {"text": "Before anything else...", "delay": 2},
+                {"text": "Look at actual results.", "delay": 2},
+
+                {
+                    "text": "📊 See the proof below.",
+                    "delay": 1,
+                    "reply_markup": InlineKeyboardMarkup([
+                        [InlineKeyboardButton("📊 Show Results", callback_data="next_results")]
+                    ])
+                }
+            ])
+            
             await send_performance_proof(update, context)
             return
 
@@ -1779,12 +1715,52 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             state["step"] = "performance_proof"
 
             await send_sequence(update, context, [
-                {"text": "That’s good.", "delay": 1},
-                {"text": "It means you haven’t built too many bad habits yet.", "delay": 2},
-                {"text": "So the smartest thing now is to verify consistency before trusting anyone.", "delay": 2},
-            ])
+                {"text": "That's good.", "delay": 2},
 
-            await send_performance_proof(update, context)
+                {
+                    "text": "It means you haven't had to learn that lesson the hard way yet.",
+                    "delay": 2,
+                },
+
+                {
+                    "text": "So the smartest thing now is to verify consistency before trusting anyone.",
+                    "delay": 2,
+                },
+
+                {"text": "Unfortunately, most traders don't do that.", "delay": 2},
+
+                {"text": "Most traders lose money.", "delay": 2},
+                {"text": "Not because they're lazy.", "delay": 2},
+                {"text": "Not because they're new.", "delay": 2},
+
+                {
+                    "text": "But because they've been burned by bad timing and low-quality signals.",
+                    "delay": 2,
+                },
+
+                {"text": "That's exactly why Tradepedia exists.", "delay": 2},
+
+                {
+                    "text": (
+                        "To help traders focus on structure, timing, "
+                        "risk management and consistency."
+                    ),
+                    "delay": 2,
+                },
+
+                {"text": "And before you trust any claims...", "delay": 2},
+                {"text": "Look at the results.", "delay": 2},
+
+                {
+                    "text": "📊 See the proof below.",
+                    "delay": 1,
+                    "reply_markup": InlineKeyboardMarkup([
+                        [InlineKeyboardButton("📊 Show Results", callback_data="next_results")]
+                    ])
+                }
+            ])
+            
+
             return
 
         elif data == "next_results":
@@ -1873,8 +1849,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             state["step"] = "joined_free"
 
             await schedule_onboarding(update, context)
-            schedule_conversion_journey(update, context)
-            schedule_free_user_premium_reminders(update, context)
+            
 
             await send_plain_text(
                         update,
@@ -2195,15 +2170,10 @@ def schedule_free_channel_posts(app: Application) -> None:
     dubai = ZoneInfo("Asia/Dubai")
 
     app.job_queue.run_daily(
-    send_daily_private_market_analysis,
-    time=time(hour=9, minute=45, tzinfo=dubai),
-    name="daily_private_market_analysis_0945_uae",
+        send_daily_bot_reminder,
+        time=time(hour=9, minute=45, tzinfo=dubai),
+        name="daily_bot_reminder_0945_uae",
     )
-    app.job_queue.run_daily(
-    send_daily_inactivity_followup,
-    time=time(hour=18, minute=0, tzinfo=dubai),
-    name="daily_inactivity_followup_1800_uae",
-)
 
     app.job_queue.run_daily(
         check_and_post_free_channel_update,
@@ -2309,6 +2279,7 @@ def build_app() -> Application:
     
 
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("testday1", test_day1_reminder))
     app.add_handler(CommandHandler("menu", menu_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("status", status_command))
