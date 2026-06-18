@@ -465,6 +465,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     schedule_auto_join_check(update, context)
 
     messages = [
+        { "text" : "My name is Avramis Despotis founder and ceo of Tradepedia",
+            "delay": 2,
+        },
        
         {
             "text": "I help traders follow structured setups instead of random signals.",
