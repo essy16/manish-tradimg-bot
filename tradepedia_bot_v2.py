@@ -1289,6 +1289,21 @@ def schedule_auto_join_check(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
 
+def has_sent_join_confirmation(user_id: int) -> bool:
+    registry = load_user_registry()
+    return registry.get(str(user_id), {}).get("join_confirmation_sent", False)
+
+
+def mark_join_confirmation_sent(user_id: int) -> None:
+    registry = load_user_registry()
+    user_key = str(user_id)
+
+    if user_key not in registry:
+        registry[user_key] = {}
+
+    registry[user_key]["join_confirmation_sent"] = True
+    save_user_registry(registry)
+
 
 async def auto_check_join_status(context: ContextTypes.DEFAULT_TYPE) -> None:
     job = context.job
@@ -1310,8 +1325,12 @@ async def auto_check_join_status(context: ContextTypes.DEFAULT_TYPE) -> None:
 
         if member.status in ["member", "administrator", "creator"]:
             job.schedule_removal()
+        
+        if has_sent_join_confirmation(user_id):
+            job.schedule_removal()
+            return
 
-            await context.bot.send_message(
+        await context.bot.send_message(
                 chat_id=chat_id,
                 text=(
                     "I can see you’ve joined the free channel.\n\n"
@@ -1325,6 +1344,7 @@ async def auto_check_join_status(context: ContextTypes.DEFAULT_TYPE) -> None:
                     [InlineKeyboardButton("XM Route: 6 Months Free", callback_data="broker_path")]
                 ])
             )
+        mark_join_confirmation_sent(user_id)
 
            
             
@@ -1680,10 +1700,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 {"text": "They've seen promises before.", "delay": 2},
                 {"text": "And they've learned to be skeptical.", "delay": 2},
 
-                {"text": "Most traders lose money.", "delay": 2},
-                {"text": "Not because they're lazy.", "delay": 2},
-                {"text": "Not because they're new.", "delay": 2},
-                {"text": "But because they've been burned by bad timing and low-quality signals.", "delay": 2},
+                {
+                    "text": (
+                        "Most traders lose money.\n"
+                        "Not because they're lazy.\n"
+                        "Not because they're new.\n"
+                        "But because they've been burned by bad timing and low-quality signals."
+                    ),
+                    "delay": 3,
+                },
 
                 {"text": "That's exactly why Tradepedia exists.", "delay": 2},
 
@@ -1706,8 +1731,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     ])
                 }
             ])
-            
-            await send_performance_proof(update, context)
+
             return
 
         if data == "lost_no":
@@ -1715,52 +1739,51 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             state["step"] = "performance_proof"
 
             await send_sequence(update, context, [
-                {"text": "That's good.", "delay": 2},
+    {"text": "That's good.", "delay": 2},
 
-                {
-                    "text": "It means you haven't had to learn that lesson the hard way yet.",
-                    "delay": 2,
-                },
+    {
+        "text": "It means you haven't had to learn that lesson the hard way yet.",
+        "delay": 2,
+    },
 
-                {
-                    "text": "So the smartest thing now is to verify consistency before trusting anyone.",
-                    "delay": 2,
-                },
+    {
+        "text": "So the smartest thing now is to verify consistency before trusting anyone.",
+        "delay": 2,
+    },
 
-                {"text": "Unfortunately, most traders don't do that.", "delay": 2},
+    {"text": "Unfortunately, most traders don't do that.", "delay": 2},
 
-                {"text": "Most traders lose money.", "delay": 2},
-                {"text": "Not because they're lazy.", "delay": 2},
-                {"text": "Not because they're new.", "delay": 2},
+    {
+        "text": (
+            "Most traders lose money.\n"
+            "Not because they're lazy.\n"
+            "Not because they're new.\n"
+            "But because they've been burned by bad timing and low-quality signals."
+        ),
+        "delay": 3,
+    },
 
-                {
-                    "text": "But because they've been burned by bad timing and low-quality signals.",
-                    "delay": 2,
-                },
+    {"text": "That's exactly why Tradepedia exists.", "delay": 2},
 
-                {"text": "That's exactly why Tradepedia exists.", "delay": 2},
+    {
+        "text": (
+            "To help traders focus on structure, timing, "
+            "risk management and consistency."
+        ),
+        "delay": 2,
+    },
 
-                {
-                    "text": (
-                        "To help traders focus on structure, timing, "
-                        "risk management and consistency."
-                    ),
-                    "delay": 2,
-                },
+    {"text": "And before you trust any claims...", "delay": 2},
+    {"text": "Look at the results.", "delay": 2},
 
-                {"text": "And before you trust any claims...", "delay": 2},
-                {"text": "Look at the results.", "delay": 2},
-
-                {
-                    "text": "📊 See the proof below.",
-                    "delay": 1,
-                    "reply_markup": InlineKeyboardMarkup([
-                        [InlineKeyboardButton("📊 Show Results", callback_data="next_results")]
-                    ])
-                }
-            ])
-            
-
+    {
+        "text": "📊 See the proof below.",
+        "delay": 1,
+        "reply_markup": InlineKeyboardMarkup([
+            [InlineKeyboardButton("📊 Show Results", callback_data="next_results")]
+        ])
+    }
+])
             return
 
         elif data == "next_results":
