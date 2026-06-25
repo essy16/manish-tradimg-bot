@@ -1910,20 +1910,21 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                             ),
                             "delay": 2,
                         },
+                       
                         {
                             "text": (
                                 "Pricing:\n\n"
-                                "• 1 Month — AED 199.99\n"
-                                "• 6 Months — AED 999.99\n"
-                                "• 12 Months — AED 1,799.99"
+                                "• 1 Month — $54.99\n"
+                                "• 6 Months — $274.99\n"
+                                "• 12 Months — $494.99"
                             ),
                             "delay": 2,
                         },
                         {
                             "text": (
-                                "Alternative route:\n\n"
-                                "Open XM account + deposit $250\n"
-                                "→ unlock 6 months of Premium Access"
+                                "Alternative Option:\n\n"
+                                "Instead of purchasing a subscription, you can open a new XM trading account through our referral link and deposit at least $250.\n\n"
+                                "After verification, you receive 6 months of Tradepedia Premium Access at no additional subscription cost."
                             ),
                             "delay": 2,
                         },
@@ -2137,13 +2138,27 @@ async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> 
 
     
     text = (
-    "🔥 <b>VIP Session Reminder</b>\n\n"
-    "I’m starting a trading session in my VIP channel in 15 minutes.\n\n"
-    "Free shows you the signal. VIP shows you the full plan, timing, "
-    "structure, risk management, and updates as the trade develops.\n\n"
-    "If you want the complete Tradepedia experience, use the links below."
+    "🚀 <b>Unlock Tradepedia Premium Access</b>\n\n"
+    "Premium Access gives you:\n\n"
+    "• High-quality trading signals\n"
+    "• Advanced market structure analysis\n"
+    "• Early access to top trade setups\n"
+    "• Full Tradepedia app features\n"
+    "• Exclusive trading tools\n"
+    "• Inner Circle trading community\n\n"
+    "<b>Pricing:</b>\n\n"
+    "• 1 Month — $54.99\n"
+    "• 6 Months — $274.99\n"
+    "• 12 Months — $494.99\n\n"
+    "<b>Alternative Option:</b>\n\n"
+    "Instead of purchasing a subscription, you can open a new XM trading account through our referral link and deposit at least $250.\n\n"
+    "After verification, you receive 6 months of Tradepedia Premium Access at no additional subscription cost.\n\n"
+    "This is not just a signal group.\n\n"
+    "This is a full trading ecosystem."
 )
-
+   
+   
+   
     try:
         await context.bot.send_message(
             chat_id=FREE_CHANNEL_ID,
