@@ -2106,8 +2106,8 @@ def channel_cta_markup() -> InlineKeyboardMarkup:
     if ANDROID_APP:
         rows.append([InlineKeyboardButton("🤖 Google Play / Android", url=ANDROID_APP)])
 
-    if BROKER_LINK:
-        rows.append([InlineKeyboardButton(" XM Route: 6 Months Free", url=BROKER_LINK)])
+    # if BROKER_LINK:
+    #     rows.append([InlineKeyboardButton(" XM Route: 6 Months Free", url=BROKER_LINK)])
 
     return InlineKeyboardMarkup(rows)
 
@@ -2146,7 +2146,7 @@ async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
     xm_text = (
-        "🎁 <b>Get 6 Months of Premium Free</b>\n\n"
+        "🎁 <b>Alternative Premium Access Route/b>\n\n"
         "Open an XM account using our referral link,\n"
         "deposit at least <b>$250</b>,\n"
         "then chat with us to activate your\n"
