@@ -2150,9 +2150,10 @@ async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> 
     "• 1 Month — $54.99\n"
     "• 6 Months — $274.99\n"
     "• 12 Months — $494.99\n\n"
-    "<b>Alternative Option:</b>\n\n"
-    "Instead of purchasing a subscription, you can open a new XM trading account through our referral link and deposit at least $250.\n\n"
-    "After verification, you receive 6 months of Tradepedia Premium Access at no additional subscription cost.\n\n"
+    "📈 <b>Alternative Premium Access Route</b>\n\n"
+    "Open an XM account using our link, deposit <b>$250</b>,\n"
+    "then chat with us to activate your\n"
+    "<b>6 months free Premium Access.</b>\n\n"
     "This is not just a signal group.\n\n"
     "This is a full trading ecosystem."
 )
@@ -2169,6 +2170,44 @@ async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> 
         print("FREE CHANNEL POST SENT:", datetime.now(ZoneInfo("Asia/Dubai")))
     except Exception:
         logger.exception("Failed to post to free channel")
+
+
+async def test_free_channel_promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Sends the free channel Premium promotion to your private chat
+    so you can verify the formatting before posting it publicly.
+    """
+
+    text = (
+        "🚀 <b>Unlock Tradepedia Premium Access</b>\n\n"
+        "Premium Access gives you:\n\n"
+        "• High-quality trading signals\n"
+        "• Advanced market structure analysis\n"
+        "• Early access to top trade setups\n"
+        "• Full Tradepedia app features\n"
+        "• Exclusive trading tools\n"
+        "• Inner Circle trading community\n\n"
+
+        "<b>Pricing:</b>\n\n"
+        "• 1 Month — $54.99\n"
+        "• 6 Months — $274.99\n"
+        "• 12 Months — $494.99\n\n"
+
+        "📈 <b>Alternative Premium Access Route</b>\n\n"
+        "Open an XM account using our link, deposit <b>$250</b>, "
+        "then chat with us to activate your "
+        "<b>6 months free Premium Access.</b>\n\n"
+
+        "This is not just a signal group.\n\n"
+        "This is a full trading ecosystem."
+    )
+
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=channel_cta_markup(),
+    )
 
 
 async def check_and_post_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -2321,6 +2360,7 @@ def build_app() -> Application:
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("testday1", test_day1_reminder))
+    app.add_handler(CommandHandler("testchannelpromo", test_free_channel_promo))
     app.add_handler(CommandHandler("menu", menu_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("status", status_command))
