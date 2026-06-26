@@ -2196,7 +2196,7 @@ async def test_free_channel_promo(update: Update, context: ContextTypes.DEFAULT_
     )
 
     xm_text = (
-        "🎁 <b>Get 6 Months of Premium Free</b>\n\n"
+        "🎁 <b>Alternative Premium Access Route</b>\n\n"
         "Open an XM account using our referral link,\n"
         "deposit at least <b>$250</b>,\n"
         "then chat with us to activate your\n"
