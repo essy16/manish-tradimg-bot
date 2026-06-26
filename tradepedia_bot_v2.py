@@ -2124,10 +2124,11 @@ def save_channel_post_state(state: dict[str, Any]) -> None:
 
 
 async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Post the premium/VIP promotional message to the free channel."""
+    """Post the daily VIP promo + XM route messages to the free channel."""
     if not FREE_CHANNEL_ID:
         print("FREE_CHANNEL_ID is missing. Channel post skipped.")
         return
+
     dubai = ZoneInfo("Asia/Dubai")
     now = datetime.now(dubai)
 
@@ -2136,80 +2137,96 @@ async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> 
         print("Weekend detected. Post skipped.")
         return
 
-    
-    text = (
-    "🚀 <b>Unlock Tradepedia Premium Access</b>\n\n"
-    "Premium Access gives you:\n\n"
-    "• High-quality trading signals\n"
-    "• Advanced market structure analysis\n"
-    "• Early access to top trade setups\n"
-    "• Full Tradepedia app features\n"
-    "• Exclusive trading tools\n"
-    "• Inner Circle trading community\n\n"
-    "<b>Pricing:</b>\n\n"
-    "• 1 Month — $54.99\n"
-    "• 6 Months — $274.99\n"
-    "• 12 Months — $494.99\n\n"
-    "📈 <b>Alternative Premium Access Route</b>\n\n"
-    "Open an XM account using our link, deposit <b>$250</b>,\n"
-    "then chat with us to activate your\n"
-    "<b>6 months free Premium Access.</b>\n\n"
-    "This is not just a signal group.\n\n"
-    "This is a full trading ecosystem."
-)
-   
-   
-   
-    try:
-        await context.bot.send_message(
-            chat_id=FREE_CHANNEL_ID,
-            text=text,
-            parse_mode=ParseMode.HTML,
-            reply_markup=channel_cta_markup(),
-        )
-        print("FREE CHANNEL POST SENT:", datetime.now(ZoneInfo("Asia/Dubai")))
-    except Exception:
-        logger.exception("Failed to post to free channel")
+    vip_text = (
+        "🔥 <b>VIP Session Reminder</b>\n\n"
+        "I’m starting a trading session in my VIP channel in 15 minutes.\n\n"
+        "Free shows you the signal. VIP shows you the full plan, timing, "
+        "structure, risk management, and updates as the trade develops.\n\n"
+        "If you want the complete Tradepedia experience, use the links below."
+    )
 
-
-async def test_free_channel_promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Test the Premium promotional post in the free Telegram channel."""
-
-    if not FREE_CHANNEL_ID:
-        await update.message.reply_text("FREE_CHANNEL_ID is not configured.")
-        return
-
-    text = (
-        "🚀 <b>Unlock Tradepedia Premium Access</b>\n\n"
-        "Premium Access gives you:\n\n"
-        "• High-quality trading signals\n"
-        "• Advanced market structure analysis\n"
-        "• Early access to top trade setups\n"
-        "• Full Tradepedia app features\n"
-        "• Exclusive trading tools\n"
-        "• Inner Circle trading community\n\n"
-
-        "<b>Pricing:</b>\n\n"
-        "• 1 Month — $54.99\n"
-        "• 6 Months — $274.99\n"
-        "• 12 Months — $494.99\n\n"
-
-        "📈 <b>Alternative Premium Access Route</b>\n\n"
-        "Open an XM account using our link, deposit <b>$250</b>, then chat with us to activate your <b>6 months free Premium Access.</b>\n\n"
-
-        "This is not just a signal group.\n\n"
-        "This is a full trading ecosystem."
+    xm_text = (
+        "🎁 <b>Get 6 Months of Premium Free</b>\n\n"
+        "Open an XM account using our referral link,\n"
+        "deposit at least <b>$250</b>,\n"
+        "then chat with us to activate your\n"
+        "<b>6 months free Premium Access.</b>"
     )
 
     try:
         await context.bot.send_message(
             chat_id=FREE_CHANNEL_ID,
-            text=text,
+            text=vip_text,
             parse_mode=ParseMode.HTML,
             reply_markup=channel_cta_markup(),
         )
 
-        await update.message.reply_text("✅ Test promotional message sent to the free channel.")
+        await asyncio.sleep(3)
+
+        await context.bot.send_message(
+            chat_id=FREE_CHANNEL_ID,
+            text=xm_text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📈 Open XM Account", url=BROKER_LINK)]
+            ]),
+        )
+
+        print("FREE CHANNEL POSTS SENT:", datetime.now(ZoneInfo("Asia/Dubai")))
+
+    except Exception:
+        logger.exception("Failed to post to free channel")
+
+
+
+
+async def test_free_channel_promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Test the two-message Premium promotion in the free channel."""
+
+    if not FREE_CHANNEL_ID:
+        await update.message.reply_text("FREE_CHANNEL_ID is not configured.")
+        return
+
+    vip_text = (
+        "🔥 <b>VIP Session Reminder</b>\n\n"
+        "I'm starting a trading session in my VIP channel in 15 minutes.\n\n"
+        "Free shows you the signal. VIP shows you the full plan, timing, "
+        "structure, risk management, and updates as the trade develops.\n\n"
+        "If you want the complete Tradepedia experience, use the links below."
+    )
+
+    xm_text = (
+        "🎁 <b>Get 6 Months of Premium Free</b>\n\n"
+        "Open an XM account using our referral link,\n"
+        "deposit at least <b>$250</b>,\n"
+        "then chat with us to activate your\n"
+        "<b>6 months free Premium Access.</b>"
+    )
+
+    try:
+        # Message 1
+        await context.bot.send_message(
+            chat_id=FREE_CHANNEL_ID,
+            text=vip_text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=channel_cta_markup(),
+        )
+
+        await asyncio.sleep(3)
+
+        # Message 2
+        await context.bot.send_message(
+            chat_id=FREE_CHANNEL_ID,
+            text=xm_text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📈 Open XM Account", url=BROKER_LINK)]
+            ]),
+        )
+
+        await update.message.reply_text(
+            "✅ Both promotional messages have been sent to the free channel."
+        )
 
     except Exception as e:
         logger.exception("Failed to send test free channel promotion")
