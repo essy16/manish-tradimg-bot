@@ -2173,10 +2173,11 @@ async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def test_free_channel_promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Sends the free channel Premium promotion to your private chat
-    so you can verify the formatting before posting it publicly.
-    """
+    """Test the Premium promotional post in the free Telegram channel."""
+
+    if not FREE_CHANNEL_ID:
+        await update.message.reply_text("FREE_CHANNEL_ID is not configured.")
+        return
 
     text = (
         "🚀 <b>Unlock Tradepedia Premium Access</b>\n\n"
@@ -2194,20 +2195,26 @@ async def test_free_channel_promo(update: Update, context: ContextTypes.DEFAULT_
         "• 12 Months — $494.99\n\n"
 
         "📈 <b>Alternative Premium Access Route</b>\n\n"
-        "Open an XM account using our link, deposit <b>$250</b>, "
-        "then chat with us to activate your "
-        "<b>6 months free Premium Access.</b>\n\n"
+        "Open an XM account using our link, deposit <b>$250</b>, then chat with us to activate your <b>6 months free Premium Access.</b>\n\n"
 
         "This is not just a signal group.\n\n"
         "This is a full trading ecosystem."
     )
 
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text=text,
-        parse_mode=ParseMode.HTML,
-        reply_markup=channel_cta_markup(),
-    )
+    try:
+        await context.bot.send_message(
+            chat_id=FREE_CHANNEL_ID,
+            text=text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=channel_cta_markup(),
+        )
+
+        await update.message.reply_text("✅ Test promotional message sent to the free channel.")
+
+    except Exception as e:
+        logger.exception("Failed to send test free channel promotion")
+        await update.message.reply_text(f"❌ Failed: {e}")
+
 
 
 async def check_and_post_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> None:
