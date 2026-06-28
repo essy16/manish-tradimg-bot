@@ -1914,9 +1914,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                         {
                             "text": (
                                 "Pricing:\n\n"
-                                "• 1 Month — $54.99\n"
-                                "• 6 Months — $274.99\n"
-                                "• 12 Months — $494.99"
+                                "•Full Premium Access Subscription — $29.99/month"
                             ),
                             "delay": 2,
                         },
