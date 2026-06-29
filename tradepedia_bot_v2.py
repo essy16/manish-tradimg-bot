@@ -2144,7 +2144,7 @@ async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
     xm_text = (
-        "🎁 <b>Alternative Premium Access Route/b>\n\n"
+        "🎁 <b>Alternative Premium Access Route </b>\n\n"
         "Open an XM account using our referral link,\n"
         "deposit at least <b>$250</b>,\n"
         "then chat with us to activate your\n"
