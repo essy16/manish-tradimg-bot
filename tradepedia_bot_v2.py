@@ -627,10 +627,10 @@ Politely say you can only help with Tradepedia, signals, Premium Access, app reg
 DAILY_MARKET_ANALYSIS = [
     {
         "image": "images/market-analysis-1.jpg",
-        "caption": "Market Analysis\n\nMost traders focus heavily on finding the perfect entry, but long-term success is often determined by risk management and trade execution.\n\nConsistent results come from protecting capital, managing positions effectively, and following a structured approach to the market." },
+        "caption": "Market Analysis\n\nTradepedia Premium helps you focus on what matters most through high-quality trade signals, access to active trades and performance, community discussions, and real-time market updates.\n\nSpend less time searching and more time focusing on opportunities with a structured approach to the markets." },
     {
         "image": "images/market-analysis-2.jpg",
-        "caption": "Market Analysis\n\nSuccessful trading is built on consistency rather than prediction. Markets change daily, but disciplined processes help traders adapt to different conditions.\n\nThe objective is not to trade more often, but to identify quality opportunities and execute them with patience and structure."},
+        "caption": "Market Analysis\n\nTrading is easier when everything is connected.\n\nMonitor opportunities, follow signals, engage with the community, and stay updated on market-moving events from a single platform.\n\nExperience Tradepedia Premium."} ,
     {
         "image": "images/market-analysis-3.jpg",
         "caption": "Market Analysis\n\nUS100Cash has successfully reached the first projected target, allowing partial profits to be secured while reducing overall exposure.\n\nWith risk now managed and the position protected, attention shifts to monitoring price action as the market approaches the next key objective."    },
@@ -643,7 +643,25 @@ DAILY_MARKET_ANALYSIS = [
 
 ]
 
+async def send_xm_route_followup(context: ContextTypes.DEFAULT_TYPE):
+    """Send the XM Route follow-up message one hour after the VIP reminder."""
 
+    xm_text = (
+        "🎁 <b>Alternative Premium Access Route</b>\n\n"
+        "Open an XM account using our referral link,\n"
+        "deposit at least <b>$250</b>,\n"
+        "then chat with us to activate your\n"
+        "<b>6 months free Premium Access.</b>"
+    )
+
+    await context.bot.send_message(
+        chat_id=context.job.data["chat_id"],
+        text=xm_text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("📈 Open XM Account", url=BROKER_LINK)]
+        ]),
+    )
 
 
 
@@ -2161,14 +2179,14 @@ async def post_daily_free_channel_update(context: ContextTypes.DEFAULT_TYPE) -> 
 
         await asyncio.sleep(3)
 
-        await context.bot.send_message(
-            chat_id=FREE_CHANNEL_ID,
-            text=xm_text,
-            parse_mode=ParseMode.HTML,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📈 Open XM Account", url=BROKER_LINK)]
-            ]),
-        )
+        context.job_queue.run_once(
+        send_xm_route_followup,
+        when=3600,  # 1 hour
+        data={
+            "chat_id": FREE_CHANNEL_ID,
+        },
+)
+
 
         print("FREE CHANNEL POSTS SENT:", datetime.now(ZoneInfo("Asia/Dubai")))
 
