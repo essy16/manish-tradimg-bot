@@ -124,49 +124,75 @@ def load_json(path: Path, default: Any) -> Any:
         return default
 
 
-async def send_daily_bot_reminder(context: ContextTypes.DEFAULT_TYPE) -> None:
+async def send_daily_bot_reminder(
+    context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Send one rotating daily reminder to every registered bot user."""
+
     registry = load_user_registry()
 
-    if not DAILY_MARKET_ANALYSIS:
+    if not DAILY_BOT_REMINDERS:
+        logger.warning("DAILY_BOT_REMINDERS is empty.")
         return
 
     dubai = ZoneInfo("Asia/Dubai")
-    today_index = datetime.now(dubai).toordinal() % len(DAILY_MARKET_ANALYSIS)
-    item = DAILY_MARKET_ANALYSIS[today_index]
 
-    image_path = Path(item["image"])
-    caption = item["caption"]
+    reminder_index = (
+        datetime.now(dubai).toordinal()
+        % len(DAILY_BOT_REMINDERS)
+    )
+
+    reminder = DAILY_BOT_REMINDERS[reminder_index]
+    text = reminder["text"]
+
+    buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(
+                "Unlock Premium Access",
+                callback_data="premium_offer",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "View Active Trades",
+                callback_data="next_results",
+            )
+        ],
+    ])
 
     for user_id, user in registry.items():
         if not user.get("active", True):
             continue
 
-        chat_id = user["chat_id"]
+        chat_id = user.get("chat_id")
+
+        if not chat_id:
+            logger.warning(
+                "Missing chat_id for registered user %s",
+                user_id,
+            )
+            continue
 
         try:
-            if image_path.exists():
-                with image_path.open("rb") as photo:
-                    await context.bot.send_photo(
-                        chat_id=chat_id,
-                        photo=photo,
-                        caption=caption,
-                        reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("View Results", callback_data="next_results")],
-                            [InlineKeyboardButton("Unlock Premium Access", callback_data="premium_offer")]
-                        ])
-                    )
-            else:
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=caption,
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("View Results", callback_data="next_results")],
-                        [InlineKeyboardButton("Unlock Premium Access", callback_data="premium_offer")]
-                    ])
-                )
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                parse_mode=ParseMode.HTML,
+                reply_markup=buttons,
+                disable_web_page_preview=True,
+            )
+
+            logger.info(
+                "Daily bot reminder sent to user %s",
+                user_id,
+            )
 
         except Exception:
-            logger.exception(f"Failed to send daily bot reminder to user {user_id}")
+            logger.exception(
+                "Failed to send daily bot reminder to user %s",
+                user_id,
+            )
+
 
 
 def save_json(path: Path, payload: Any) -> None:
@@ -624,24 +650,56 @@ Politely say you can only help with Tradepedia, signals, Premium Access, app reg
 
 
 
-DAILY_MARKET_ANALYSIS = [
+DAILY_BOT_REMINDERS = [
     {
-        "image": "images/market-analysis-1.jpg",
-        "caption": "Market Analysis\n\nTradepedia Premium helps you focus on what matters most through high-quality trade signals, access to active trades and performance, community discussions, and real-time market updates.\n\nSpend less time searching and more time focusing on opportunities with a structured approach to the markets." },
+        "text": (
+            "🤔 <b>Still Not Sure What Deserves Your Attention Today?</b>\n\n"
+            "Tradepedia Premium helps you focus on what matters most through:\n\n"
+            "✅ High-quality trade signals\n"
+            "✅ Access to our active trades and performance\n"
+            "✅ Community chat — live insights and trade execution\n"
+            "✅ Real-time market updates\n\n"
+            "Spend less time searching and more time focusing on opportunities.\n\n"
+            "🔓 Unlock Tradepedia Premium today and take your market analysis, "
+            "execution, and decision-making to the next level."
+        )
+    },
     {
-        "image": "images/market-analysis-2.jpg",
-        "caption": "Market Analysis\n\nTrading is easier when everything is connected.\n\nMonitor opportunities, follow signals, engage with the community, and stay updated on market-moving events from a single platform.\n\nExperience Tradepedia Premium."} ,
+        "text": (
+            "📈 <b>Trading Is Easier When Everything Is Connected</b>\n\n"
+            "Monitor opportunities, follow signals, engage with the community, "
+            "and stay updated on market-moving events from a single platform.\n\n"
+            "🚀 Experience Tradepedia Premium."
+        )
+    },
     {
-        "image": "images/market-analysis-3.jpg",
-        "caption": "Market Analysis\n\nUS100Cash has successfully reached the first projected target, allowing partial profits to be secured while reducing overall exposure.\n\nWith risk now managed and the position protected, attention shifts to monitoring price action as the market approaches the next key objective."    },
+        "text": (
+            "📊 <b>Go Beyond Trade Signals</b>\n\n"
+            "Follow our active trades from entry to exit and monitor their "
+            "progress in real time.\n\n"
+            "See how every position is managed.\n\n"
+            "🔓 Upgrade to Tradepedia Premium."
+        )
+    },
     {
-        "image": "images/market-analysis-4.jpg",
-        "caption": "Market Analysis\n\nUSDJPY has successfully reached the first target level, confirming the strength of the current bullish structure.\n\nWith partial profits secured and risk effectively managed, attention now turns to how price behaves as it approaches the next key resistance area."  },
+        "text": (
+            "💬 <b>Trading Doesn't Have to Be a Solo Journey</b>\n\n"
+            "Join a community where traders share ideas, discuss live market "
+            "developments, and follow trade execution together.\n\n"
+            "🚀 Experience Tradepedia Premium."
+        )
+    },
     {
-        "image": "images/market-analysis-5.jpg",
-        "caption": "Market Analysis\n\nPrice has successfully advanced through the projected target zones, validating the original analysis and trade structure.\n\nTrade management remains a critical component of consistency, ensuring profits are secured as objectives are achieved."}
-
+        "text": (
+            "⏱️ <b>Less Time Searching. More Time Trading.</b>\n\n"
+            "No more switching between charts, news websites, and chat groups.\n\n"
+            "Tradepedia Premium brings everything you need into a single platform.\n\n"
+            "🚀 Experience everything Tradepedia Premium has to offer."
+        )
+    },
 ]
+
+
 
 async def send_xm_route_followup(context: ContextTypes.DEFAULT_TYPE):
     """Send the XM Route follow-up message one hour after the VIP reminder."""
